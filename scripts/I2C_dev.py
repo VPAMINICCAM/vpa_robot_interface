@@ -106,7 +106,7 @@ class dt_I2C_node:
     def __init__(self) -> None:
 
         self.driver         = wheel_drivers()
-        self.tof_sensor     = ToFVL53L1X()
+        self.tof_sensor     = ToFVL53L1X(address=0x29)
 
         rospy.on_shutdown(self.shut_hook)
 
