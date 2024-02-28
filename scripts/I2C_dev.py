@@ -113,9 +113,9 @@ class dt_I2C_node:
         # Subscribers
         self.sub_topic = rospy.Subscriber("wheels_cmd", WheelsCmd, self.wheels_cmd_cb, queue_size=1)
         # Publishers
-        self.rate   = rospy.Rate(10) # 10hz
+        # self.rate   = rospy.Rate(10) # 10hz
         self.tofPub = rospy.Publisher('/tof/distance', Range, queue_size=10)
-        rospy.Timer(self.rate, self.publish_current_distance)
+        rospy.Timer(rospy.Duration(secs=0.1), self.publish_current_distance)
 
         rospy.loginfo("Wheel Driver Initialized")
         rospy.loginfo("ToF Sensor Initialized")
