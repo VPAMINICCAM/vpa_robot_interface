@@ -141,7 +141,7 @@ class dt_I2C_node:
         r.header.frame_id   = "/tof_sensor"
         r.radiation_type    = Range.INFRARED
         r.field_of_view     = 3
-        r.min_range         = 130
+        r.min_range         = 150
         r.max_range         = 27 * 0.0174532925199433
 
         r.range = distance
