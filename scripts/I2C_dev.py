@@ -128,7 +128,7 @@ class dt_I2C_node:
         del self.driver
         rospy.loginfo('Wheels Released on shutdown')
     
-    def publish_current_distance(self):
+    def publish_current_distance(self,_):
         distance = self.tof_sensor.distance()
 
         # message_str = "Distance: %s cm" % distance
