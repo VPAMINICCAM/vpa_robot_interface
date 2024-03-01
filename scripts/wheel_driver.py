@@ -11,6 +11,9 @@ from vpa_robot_interface.cfg import omegaConfig
 
 from pid_controller.pi_format import PI_controller
 
+from geometry_msgs.msg import Twist
+from std_msgs.msg import Bool
+
 from dynamic_reconfigure.server import Server
 
 class WheelDriver:
@@ -99,9 +102,14 @@ class WheelDriver:
     
 class WheelDriverNode:
 
+
     def __init__(self) -> None:
 
         rospy.on_shutdown(self.shut_hook)
+        
+        # Get the vehicle name
+        self.veh_name         = rospy.get_namespace().strip("/")
+        self.is_publish_debug = bool(rospy.get_param('~publish_debug',False)) 
 
         self.driver = WheelDriver()
 
@@ -120,23 +128,52 @@ class WheelDriverNode:
         self.throttle_left      = 0
         self.throttle_right     = 0
 
+        # Kinematics
+
+        self._v_max     = 1         # max longtitude speed m/s
+        self._omega_max = 8         # max yaw rate rad/s
+        self._baseline  = 0.1       # gap between wheels m
+        self._radius    = 0.0318    # radius of wheels
+
+        # Global brake
+
+        self.estop         = True
+        rospy.loginfo("%s: global brake activated",self.veh_name)
+
         # Subscribers
-        self.sub_cmd       = rospy.Subscriber("wheels_cmd", WheelsCmd, self.wheels_cmd_cb, queue_size=1)
+        # self.sub_cmd     = rospy.Subscriber("wheels_cmd", WheelsCmd, self.wheels_cmd_cb, queue_size=1)
         self.sub_left_enc  = rospy.Subscriber("left_omega",WheelsEncoder,self.left_omega_cb,queue_size=1)
         self.sub_right_enc = rospy.Subscriber("right_omega",WheelsEncoder,self.right_omega_cb,queue_size=1)
+        self.sub_car_cmd   = rospy.Subscriber("cmd_vel", Twist, self.car_cmd_cb)
+        self.sub_e_stop    = rospy.Subscriber("/global_brake", Bool, self.estop_cb, queue_size=1)
+
+        if self.is_publish_debug:
+            self.pub_wheel_debug = rospy.Publisher('wheel_ref',WheelsCmd,queue_size=1)
         
         self.srv = Server(omegaConfig,self.dynamic_reconfigure_callback)
+        rospy.loginfo("%s: wheel drivers ready")
 
-    def wheels_cmd_cb(self,msg:WheelsCmd) -> None:
+    def car_cmd_cb(self,msg_car_cmd:Twist) -> None:
+        msg_car_cmd.linear.x    = max(min(msg_car_cmd.linear.x,self._v_max),-self._v_max)
+        msg_car_cmd.angular.z   = max(min(msg_car_cmd.angular.z,self._omega_max),-self._omega_max)
+        if not self.estop:
+            self.omega_right_ref    = (msg_car_cmd.linear.x + 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius
+            self.omega_left_ref     = (msg_car_cmd.linear.x - 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius
+        
+        if self.pub_wheel_debug:
+            msg_wheel_cmd = WheelsCmd()
+            msg_wheel_cmd.vel_left  = self.omega_left_ref
+            msg_wheel_cmd.vel_right = self.omega_right_ref
+            self.pub_wheel_debug.publish(msg_wheel_cmd)
 
-        self.omega_left_ref     = msg.vel_right
-        self.omega_right_ref    = msg.vel_right
+    def estop_cb(self,msg:Bool) -> None:
+        self.estop = msg.data
 
     def shut_hook(self) -> None:
         self.driver.set_wheels_throttle(0)
         self.driver.set_wheels_throttle(0)
         del self.driver
-        rospy.loginfo('Wheel Driver Shutdown')
+        rospy.loginfo('%s: Wheel Driver Shutdown',self.veh_name)
     
     def left_omega_cb(self,msg:WheelsEncoder) -> None:
         self.omega_left_sig     = msg.omega
@@ -155,7 +192,6 @@ class WheelDriverNode:
         elif self.throttle_right < -1:
             self.throttle_right = -1
         self.driver.set_wheels_throttle(left=self.throttle_left,right=self.throttle_right)
-
 
     def dynamic_reconfigure_callback(self,config,level):
         self.kp = config.kp
