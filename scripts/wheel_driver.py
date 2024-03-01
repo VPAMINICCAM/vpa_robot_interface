@@ -160,6 +160,9 @@ class WheelDriverNode:
         if not self.estop:
             self.omega_right_ref    = (msg_car_cmd.linear.x + 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius
             self.omega_left_ref     = (msg_car_cmd.linear.x - 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius
+        else:
+            self.omega_right_ref    = 0
+            self.omega_left_ref     = 0
         
         #print('ref',self.omega_left_ref,self.omega_right_ref)
         msg_wheel_cmd = WheelsCmd()
@@ -196,16 +199,21 @@ class WheelDriverNode:
         elif self.throttle_right < -0.5:
             self.throttle_right = -0.5
         
-        if self.omega_left_ref == 0 or self.estop:
+        if self.omega_left_ref == 0:
             self.throttle_left = 0
             self.omega_controller_left.reset_controller()
 
-        if self.omega_right_ref == 0 or self.estop:
+        if self.omega_right_ref == 0:
             self.throttle_right = 0
             self.omega_controller_right.reset_controller()     
         # print('throttle',self.throttle_left,self.throttle_right)
         if not self.estop:
             self.driver.set_wheels_throttle(left=self.throttle_left,right=self.throttle_right)
+        else:
+            self.driver.set_wheels_throttle(left=0,right=0)
+            self.omega_controller_left.reset_controller()
+            self.omega_controller_right.reset_controller()
+            
 
     def dynamic_reconfigure_callback(self,config,level):
         self.kp = config.kp
