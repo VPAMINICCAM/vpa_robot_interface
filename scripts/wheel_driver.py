@@ -194,25 +194,6 @@ class WheelDriverNode:
         
         self.driver.set_wheels_throttle(left=self.throttle_left,right=self.throttle_right)
 
-    
-    # def left_omega_cb(self,msg:WheelsEncoder) -> None:
-    #     self.omega_left_sig     = msg.omega
-    #     self.throttle_left      = self.omega_controller_left.pi_control(self.omega_left_ref,self.omega_left_sig)
-    #     if self.throttle_left > 1:
-    #         self.throttle_left = 1
-    #     elif self.throttle_left < -1:
-    #         self.throttle_left = -1
-    #     self.driver.set_wheels_throttle(left=self.throttle_left,right=self.throttle_right)
-
-    # def right_omega_cb(self,msg:WheelsEncoder) -> None:
-    #     self.omega_right_sig    = msg.omega
-    #     self.throttle_right     = self.omega_controller_right.pi_control(self.omega_right_ref,self.omega_right_sig)
-    #     if self.throttle_right > 1:
-    #         self.throttle_right = 1
-    #     elif self.throttle_right < -1:
-    #         self.throttle_right = -1
-    #     self.driver.set_wheels_throttle(left=self.throttle_left,right=self.throttle_right)
-
     def dynamic_reconfigure_callback(self,config,level):
         self.kp = config.kp
         self.ki = config.ki
