@@ -17,21 +17,23 @@ class ToFDriverNode:
         if len(self.veh_name) == 0:
             self.veh_name = 'db19'
 
-        self._timer       = rospy.Timer(rospy.Duration(1/25),self._read_data)
-        self._publish_res = rospy.Timer(rospy.Duration(1/10),self._publish_data)
+        self._timer       = rospy.Timer(rospy.Duration(1/10),self._read_data)
+        self._publish_res = rospy.Timer(rospy.Duration(1/5),self._publish_data)
 
         self._pub_tof     = rospy.Publisher('/tof_distance',Range,queue_size=1)
 
-        self.tof_distance = 1.36
+        self.tof_distance = 5
 
-        rospy.loginfo("%s: tof sensor ready")
+        rospy.loginfo("%s: tof sensor ready",self.veh_name)
 
     def _read_data(self,_):
 
         value = self.tof.get_distance()
         
-        if value != -1:
+        if value != -1 and value != None:
             self.tof_distance = value * 0.01 # convert to meters
+            if self.tof_distance > 1.36:
+                self.tof_distance = 1.36
         
     def _publish_data(self,_):
 
