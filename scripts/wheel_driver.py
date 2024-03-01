@@ -196,11 +196,11 @@ class WheelDriverNode:
         elif self.throttle_right < -0.5:
             self.throttle_right = -0.5
         
-        if self.omega_left_ref == 0:
+        if self.omega_left_ref == 0 or self.estop:
             self.throttle_left = 0
             self.omega_controller_left.reset_controller()
 
-        if self.omega_right_ref == 0:
+        if self.omega_right_ref == 0 or self.estop:
             self.throttle_right = 0
             self.omega_controller_right.reset_controller()     
         # print('throttle',self.throttle_left,self.throttle_right)
