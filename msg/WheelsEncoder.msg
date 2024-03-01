@@ -2,4 +2,5 @@
 uint8 ENCODER_TYPE_ABSOLUTE = 0
 uint8 ENCODER_TYPE_INCREMENTAL = 1
 
-float32 omega
+float32 omega_left
+float32 omega_right

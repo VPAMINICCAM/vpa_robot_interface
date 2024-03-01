@@ -142,8 +142,7 @@ class WheelDriverNode:
 
         # Subscribers
         # self.sub_cmd     = rospy.Subscriber("wheels_cmd", WheelsCmd, self.wheels_cmd_cb, queue_size=1)
-        self.sub_left_enc  = rospy.Subscriber("left_omega",WheelsEncoder,self.left_omega_cb,queue_size=1)
-        self.sub_right_enc = rospy.Subscriber("right_omega",WheelsEncoder,self.right_omega_cb,queue_size=1)
+        self.sub_wheel_enc = rospy.Subscriber("wheel_omega",WheelsEncoder,self.wheel_omega_cb,queue_size=1)
         self.sub_car_cmd   = rospy.Subscriber("cmd_vel", Twist, self.car_cmd_cb)
         self.sub_e_stop    = rospy.Subscriber("/global_brake", Bool, self.estop_cb, queue_size=1)
 
@@ -174,24 +173,45 @@ class WheelDriverNode:
         self.driver.set_wheels_throttle(0)
         del self.driver
         rospy.loginfo('%s: Wheel Driver Shutdown',self.veh_name)
-    
-    def left_omega_cb(self,msg:WheelsEncoder) -> None:
-        self.omega_left_sig     = msg.omega
+
+    def wheel_omega_cb(self,msg:WheelsEncoder) -> None:
+
+        self.omega_left_sig     = msg.omega_left
+        self.omega_right_sig    = msg.omega_right
+
         self.throttle_left      = self.omega_controller_left.pi_control(self.omega_left_ref,self.omega_left_sig)
+        self.throttle_right     = self.omega_controller_right.pi_control(self.omega_right_ref,self.omega_right_sig)
+        
         if self.throttle_left > 1:
             self.throttle_left = 1
         elif self.throttle_left < -1:
             self.throttle_left = -1
-        self.driver.set_wheels_throttle(left=self.throttle_left,right=self.throttle_right)
 
-    def right_omega_cb(self,msg:WheelsEncoder) -> None:
-        self.omega_right_sig    = msg.omega
-        self.throttle_right     = self.omega_controller_right.pi_control(self.omega_right_ref,self.omega_right_sig)
         if self.throttle_right > 1:
             self.throttle_right = 1
         elif self.throttle_right < -1:
             self.throttle_right = -1
+        
         self.driver.set_wheels_throttle(left=self.throttle_left,right=self.throttle_right)
+
+    
+    # def left_omega_cb(self,msg:WheelsEncoder) -> None:
+    #     self.omega_left_sig     = msg.omega
+    #     self.throttle_left      = self.omega_controller_left.pi_control(self.omega_left_ref,self.omega_left_sig)
+    #     if self.throttle_left > 1:
+    #         self.throttle_left = 1
+    #     elif self.throttle_left < -1:
+    #         self.throttle_left = -1
+    #     self.driver.set_wheels_throttle(left=self.throttle_left,right=self.throttle_right)
+
+    # def right_omega_cb(self,msg:WheelsEncoder) -> None:
+    #     self.omega_right_sig    = msg.omega
+    #     self.throttle_right     = self.omega_controller_right.pi_control(self.omega_right_ref,self.omega_right_sig)
+    #     if self.throttle_right > 1:
+    #         self.throttle_right = 1
+    #     elif self.throttle_right < -1:
+    #         self.throttle_right = -1
+    #     self.driver.set_wheels_throttle(left=self.throttle_left,right=self.throttle_right)
 
     def dynamic_reconfigure_callback(self,config,level):
         self.kp = config.kp
