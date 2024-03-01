@@ -31,3 +31,8 @@ class PI_controller:
 
         self.kp = kp
         self.ki = ki
+        
+    def reset_controller(self):
+        
+        self.control_output = 0
+        self.err_record     = 0       

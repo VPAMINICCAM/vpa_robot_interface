@@ -25,7 +25,7 @@ class WheelDriver:
     SPEED_TOLERANCE     = 1.0e-2    #: Speed tolerance level
 
     def __init__(self) -> None:
-        self.hat        = HATv2
+        self.hat        = HATv2()
         self.leftMotor  = self.hat.get_motor(1, "left")
         self.rightMotor = self.hat.get_motor(2, "right")
 
@@ -109,7 +109,8 @@ class WheelDriverNode:
         
         # Get the vehicle name
         self.veh_name         = rospy.get_namespace().strip("/")
-        self.is_publish_debug = bool(rospy.get_param('~publish_debug',False)) 
+        if len(self.veh_name) == 0:
+            self.veh_name = 'db19'
 
         self.driver = WheelDriver()
 
@@ -146,11 +147,12 @@ class WheelDriverNode:
         self.sub_car_cmd   = rospy.Subscriber("cmd_vel", Twist, self.car_cmd_cb)
         self.sub_e_stop    = rospy.Subscriber("/global_brake", Bool, self.estop_cb, queue_size=1)
 
-        if self.is_publish_debug:
-            self.pub_wheel_debug = rospy.Publisher('wheel_ref',WheelsCmd,queue_size=1)
+        self.pub_wheel_debug = rospy.Publisher('wheel_ref',WheelsCmd,queue_size=1)
+        
+        # self.pub_wheel_dir = rospy.Publisher('wheel_direction')
         
         self.srv = Server(omegaConfig,self.dynamic_reconfigure_callback)
-        rospy.loginfo("%s: wheel drivers ready")
+        rospy.loginfo("%s: wheel drivers ready",self.veh_name)
 
     def car_cmd_cb(self,msg_car_cmd:Twist) -> None:
         msg_car_cmd.linear.x    = max(min(msg_car_cmd.linear.x,self._v_max),-self._v_max)
@@ -159,40 +161,51 @@ class WheelDriverNode:
             self.omega_right_ref    = (msg_car_cmd.linear.x + 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius
             self.omega_left_ref     = (msg_car_cmd.linear.x - 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius
         
-        if self.pub_wheel_debug:
-            msg_wheel_cmd = WheelsCmd()
-            msg_wheel_cmd.vel_left  = self.omega_left_ref
-            msg_wheel_cmd.vel_right = self.omega_right_ref
-            self.pub_wheel_debug.publish(msg_wheel_cmd)
+        #print('ref',self.omega_left_ref,self.omega_right_ref)
+        msg_wheel_cmd = WheelsCmd()
+        msg_wheel_cmd.vel_left  = self.omega_left_ref
+        msg_wheel_cmd.vel_right = self.omega_right_ref
+        self.pub_wheel_debug.publish(msg_wheel_cmd)
 
     def estop_cb(self,msg:Bool) -> None:
         self.estop = msg.data
+        rospy.loginfo_once('%s: global brake: %s',self.veh_name,str(msg.data))
 
     def shut_hook(self) -> None:
-        self.driver.set_wheels_throttle(0)
-        self.driver.set_wheels_throttle(0)
+        self.estop = True
+        self.driver.set_wheels_throttle(left=0,right=0)
         del self.driver
-        rospy.loginfo('%s: Wheel Driver Shutdown',self.veh_name)
+        rospy.loginfo("%s: Wheel driver shutdown",self.veh_name)
 
     def wheel_omega_cb(self,msg:WheelsEncoder) -> None:
 
         self.omega_left_sig     = msg.omega_left
         self.omega_right_sig    = msg.omega_right
+        #print('signal',self.omega_left_sig,self.omega_right_sig)
 
         self.throttle_left      = self.omega_controller_left.pi_control(self.omega_left_ref,self.omega_left_sig)
         self.throttle_right     = self.omega_controller_right.pi_control(self.omega_right_ref,self.omega_right_sig)
         
         if self.throttle_left > 1:
             self.throttle_left = 1
-        elif self.throttle_left < -1:
-            self.throttle_left = -1
+        elif self.throttle_left < -0.5:
+            self.throttle_left = -0.5
 
         if self.throttle_right > 1:
             self.throttle_right = 1
-        elif self.throttle_right < -1:
-            self.throttle_right = -1
+        elif self.throttle_right < -0.5:
+            self.throttle_right = -0.5
         
-        self.driver.set_wheels_throttle(left=self.throttle_left,right=self.throttle_right)
+        if self.omega_left_ref == 0:
+            self.throttle_left = 0
+            self.omega_controller_left.reset_controller()
+
+        if self.omega_right_ref == 0:
+            self.throttle_right = 0
+            self.omega_controller_right.reset_controller()     
+        # print('throttle',self.throttle_left,self.throttle_right)
+        if not self.estop:
+            self.driver.set_wheels_throttle(left=self.throttle_left,right=self.throttle_right)
 
     def dynamic_reconfigure_callback(self,config,level):
         self.kp = config.kp

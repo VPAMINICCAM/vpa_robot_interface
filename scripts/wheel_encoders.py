@@ -5,7 +5,7 @@ from enum import IntEnum
 
 import RPi.GPIO as GPIO
 
-from vpa_robot_interface.msg import WheelsEncoder
+from vpa_robot_interface.msg import WheelsCmd,WheelsEncoder
 from math import pi
 
 class WheelDirection(IntEnum):
@@ -30,6 +30,8 @@ class WheelEncoderDriver:
         self._callback = callback
 
         self._ticks = 0
+        
+        self._direction = 1 # because the encodes has one single phase, no reliable to get direction now
 
     def get_direction(self) -> WheelDirection:
         return self._direction
@@ -38,7 +40,7 @@ class WheelEncoderDriver:
         self._direction = direction
 
     def _cb(self, _):
-        self._ticks += self._direction.value
+        self._ticks += self._direction
         self._callback(self._ticks)
 
     def __del__(self):
@@ -48,6 +50,9 @@ class WheelEncodersNode:
 
     def __init__(self) -> None:
         self.veh_name           = rospy.get_namespace().strip("/")
+        if len(self.veh_name) == 0:
+            self.veh_name = 'db19'
+        
         self._publish_frequency = 20
         self._resolution        = 135
         self.left_gpio          = 18
@@ -71,14 +76,43 @@ class WheelEncodersNode:
         self.window_pointer_left    = 0
         self.window_pointer_right   = 0
 
+        self.sub_dir       = rospy.Subscriber('wheel_ref',WheelsCmd,self.dir_cb)
         self.pub_omega      = rospy.Publisher('wheel_omega',WheelsEncoder,queue_size=1)
 
         self.left_driver    = WheelEncoderDriver(self.left_gpio,self.left_enc_cb)
         self.right_driver   = WheelEncoderDriver(self.right_gpio,self.right_enc_cb) 
 
-        self._timer = rospy.Timer(rospy.Duration(1.0 / self._publish_frequency), self._cb_publish)
+        self._timer       = rospy.Timer(rospy.Duration(1.0 / self._publish_frequency), self._cb_publish)
+        self._timer_omega = rospy.Timer(rospy.Duration(1/50),self._omega_reduce_cb)
 
-        rospy.loginfo("%s: wheel encoders ready")
+        rospy.loginfo("%s: wheel encoders ready",self.veh_name)
+    
+    def dir_cb(self,msg:WheelsCmd):
+        
+        if msg.throttle_left < 0:
+            self.left_driver.set_direction(-1)
+        else:
+            self.left_driver.set_direction(1)
+            
+        if msg.throttle_right < 0:
+            self.right_driver.set_direction(-1)
+        else:
+            self.right_driver.set_direction(1)
+    
+    def _omega_reduce_cb(self,_):
+        
+        if self._tick_left == self._tick_left_last:
+            # no change for about 20ms -> wheel is not spining or very slow
+            self.omega_left = 0
+            self.omega_window_left = []
+            self.window_pointer_left = 0
+        
+        if self._tick_right == self._tick_right_last:
+            # no change for about 20ms -> wheel is not spining or very slow
+            self.omega_right = 0
+            self.omega_window_right = []
+            self.window_pointer_right = 0        
+            
 
     def left_enc_cb(self, tick_no) -> None:
 
@@ -133,14 +167,14 @@ class WheelEncodersNode:
     def _cb_publish(self,_):
         
         if len(self.omega_window_left) > 0:
-            self.omega_left = sum(self.omega_left)/len(self.omega_left)
-        
+            self.omega_left = sum(self.omega_window_left)/len(self.omega_window_left)
+            
         if len(self.omega_window_right) > 0:
-            self.omega_right = sum(self.omega_right)/len(self.omega_right)
+            self.omega_right = sum(self.omega_window_right)/len(self.omega_window_right)
 
-        msg_to_send = WheelEncodersNode()
-        msg_to_send.omega_left = self.omega_left
-        msg_to_send.omega_left = self.omega_left
+        msg_to_send = WheelsEncoder()
+        msg_to_send.omega_left  = self.omega_left
+        msg_to_send.omega_right = self.omega_right
 
         self.pub_omega.publish(msg_to_send)
 
