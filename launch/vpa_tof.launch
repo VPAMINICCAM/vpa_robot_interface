@@ -1,3 +1,3 @@
 <launch>
-    <node name="tof_sensor" pkg="vpa_robot_interface" type="tof_driver.py" output="screen" required="true"/>
+    <node name="tof_sensor" pkg="vpa_robot_interface" type="tof_driver_i2c.py" output="screen" required="true"/>
 </launch>
