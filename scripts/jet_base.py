@@ -3,7 +3,7 @@
 import rospy
 
 from ackermann_msgs.msg import AckermannDrive
-
+from vpa_robot_interface.msg import jetracer_act
 from jetracer.nvidia_racecar import NvidiaRacecar
 
 class jetracer_driver:
@@ -15,31 +15,29 @@ class jetracer_driver:
         self.car.steering = 0
         self.car.throttle = 0
         
-        self.cmd_sub = rospy.Subscriber('/cmd_ackermann',AckermannDrive,self._cb)
+        self.cmd_sub = rospy.Subscriber('/cmd_jetact',jetracer_act,self._cb,queue_size=1)
         
-    def _cb(self,msg:AckermannDrive):
+    def _cb(self,msg:jetracer_act):
+        self.car.steering = msg.steering_servo
+        self.car.throttle = msg.throttle
+        # # positive to the left
         
-        _steering_angle = msg.steering_angle #(rad)
+        # servo_output = -(_steering_angle * 57.2958)/15
+        # if servo_output > 1:
+        #     servo_output = 1
+        # elif servo_output < -1:
+        #     servo_output = -1
         
-        # positive to the left
+        # self.car.steering = servo_output
+        # _acc = msg.acceleration # m/s^2
         
-        servo_output = -(_steering_angle * 57.2958)/15
-        if servo_output > 1:
-            servo_output = 1
-        elif servo_output < -1:
-            servo_output = -1
-            
-        self.car.steering = servo_output
+        # # but this is rough with not close loop
         
-        _acc = msg.acceleration # m/s^2
-        
-        # but this is rough with not close loop
-        
-        if _acc > 1:
-            _acc = 1
-        elif _acc < -1:
-            _acc = -1
-        self.car.throttle = _acc
+        # if _acc > 1:
+        #     _acc = 1
+        # elif _acc < -1:
+        #     _acc = -1
+        # self.car.throttle = _acc
         
 if __name__ == "__main__":
     try:
