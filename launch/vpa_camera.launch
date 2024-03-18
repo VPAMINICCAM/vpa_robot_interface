@@ -9,7 +9,7 @@
   <arg name="fps" default="20" />                            <!-- Desired framerate. True framerate may not reach this if set too high. -->
   <arg name="flip_method" default="0" />                     <!-- flip_method -->
   <arg name="load_camera_info" default="true" />             <!-- Load the camera info or not-->
-  <arg name="camera_info_url" default="file://$(find jetracer)/config/camera_calibration/cam_640x480.yaml" />
+  <arg name="camera_info_url" default="file://$(find vpa_robot_interface)/config/camera_calibration/cam_640x480.yaml" />
 
   <!-- Make arguments available to parameter server -->
   <param name="$(arg cam_name)/camera_id" type="int" value="$(arg sensor_id)" />
