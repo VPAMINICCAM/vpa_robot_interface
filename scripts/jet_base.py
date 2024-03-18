@@ -45,5 +45,6 @@ if __name__ == "__main__":
     try:
         rospy.init_node('jet_base')
         T = jetracer_driver()
+        rospy.spin()
     except KeyboardInterrupt:
         print('shutdown')
