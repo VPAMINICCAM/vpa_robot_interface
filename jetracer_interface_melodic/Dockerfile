@@ -6,8 +6,9 @@ ENV DEBIAN_FRONTEND noninteractive
 
 # Create a new user 'vpaadmin' with password 'vpaduck'
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends sudo && \
-    apt-get install ros-melodic-gscam && \
+    apt-get install -y --no-install-recommends \
+    sudo \
+    ros-melodic-gscam && \
     useradd -m -s /bin/bash vpaadmin && \
     echo "vpaadmin:vpaduck" | chpasswd && \
     echo "vpaadmin ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
