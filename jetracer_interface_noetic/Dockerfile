@@ -6,9 +6,13 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # Update and install Python setuptools and other dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-setuptools \
+    python3-pip \
     sudo \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages with pip
+RUN pip3 install traitlets Jetson.GPIO
 
 # Create a non-root user
 RUN useradd -m -s /bin/bash vpaadmin \
