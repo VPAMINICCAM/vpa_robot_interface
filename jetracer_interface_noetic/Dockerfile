@@ -31,7 +31,7 @@ RUN mkdir -p ~/catkin_ws/src \
 COPY ./vpa_robot_interface /home/vpaadmin/catkin_ws/src/vpa_robot_interface
 COPY ./jetracer /home/vpaadmin/jetracer
 
-RUN chmod +x /home/vpaadmin/catkin_ws/src/vpa_robot_interface/scripts/jet_base.py
+RUN sudo chmod +x /home/vpaadmin/catkin_ws/src/vpa_robot_interface/scripts/jet_base.py
 # Setup ROS environment variables
 RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc \
     && echo "source /home/vpaadmin/catkin_ws/devel/setup.bash" >> ~/.bashrc \
