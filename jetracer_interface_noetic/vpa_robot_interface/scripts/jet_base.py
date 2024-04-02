@@ -16,7 +16,7 @@ def callback(data):
     # print('steering:',car.steering,'throttle:',car.throttle)
     
 def listener():
-    rospy.init_node('tutorials_msg_sub', anonymous=False)
+    rospy.init_node('traction_node', anonymous=False)
     rospy.Subscriber("cmd", JetServo, callback)
     rospy.spin()
     
