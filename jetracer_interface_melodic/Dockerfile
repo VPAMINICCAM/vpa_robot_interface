@@ -15,6 +15,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get update \
     && apt-get install -y \
     ros-melodic-ros-base \
+    ros-melodic-image-transport \
+    ros-melodic-image-transport-plugins \
+    ros-melodic-compressed-image-transport \
     ros-melodic-gscam \
     python-rosdep \
     && apt-get clean \
@@ -32,8 +35,9 @@ RUN useradd -m -s /bin/bash vpaadmin \
 USER vpaadmin
 WORKDIR /home/vpaadmin
 
-# Setup ROS environment
+# Setup ROS environment and automatically source the ROS setup script on container startup
 RUN echo "source /opt/ros/melodic/setup.bash" >> ~/.bashrc \
+    && echo "source /home/vpaadmin/catkin_ws/devel/setup.bash" >> ~/.bashrc \
     && echo "export ROS_MASTER_URI=http://192.168.1.4:11311" >> ~/.bashrc \
     && echo "export ROS_IP=\$(hostname -I | awk '{print \$1}')" >> ~/.bashrc \
     && echo "export ROS_HOSTNAME=\$ROS_IP" >> ~/.bashrc
@@ -43,7 +47,7 @@ RUN mkdir -p ~/catkin_ws/src \
     && /bin/bash -c '. /opt/ros/melodic/setup.bash; catkin_init_workspace ~/catkin_ws/src'
 
 # Copy the ROS project into the container
-COPY ./vpa_robot_interface ~/catkin_ws/src/vpa_robot_interface
+COPY ./vpa_robot_interface /home/vpaadmin/catkin_ws/src/vpa_robot_interface
 
 # Build the ROS project
 RUN /bin/bash -c '. /opt/ros/melodic/setup.bash; cd ~/catkin_ws; catkin_make'
