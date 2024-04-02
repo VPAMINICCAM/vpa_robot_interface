@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y \
     ros-melodic-ros-base \
     ros-melodic-gscam \
+    python-rosdep \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
