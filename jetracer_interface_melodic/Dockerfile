@@ -23,10 +23,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Initialize rosdep
-RUN rosdep init \
-    && rosdep update
-
 # Create a non-root user
 RUN useradd -m -s /bin/bash vpaadmin \
     && echo "vpaadmin:vpaadmin" | chpasswd \
@@ -34,6 +30,10 @@ RUN useradd -m -s /bin/bash vpaadmin \
 
 USER vpaadmin
 WORKDIR /home/vpaadmin
+
+# Initialize rosdep
+RUN sudo rosdep init \
+    && rosdep update
 
 # Setup ROS environment and automatically source the ROS setup script on container startup
 RUN echo "source /opt/ros/melodic/setup.bash" >> ~/.bashrc \
@@ -53,6 +53,6 @@ COPY ./vpa_robot_interface /home/vpaadmin/catkin_ws/src/vpa_robot_interface
 RUN /bin/bash -c '. /opt/ros/melodic/setup.bash; cd ~/catkin_ws; catkin_make'
 
 # Make the container start in the catkin workspace
-WORKDIR /home/vpaadmin/catkin_ws
+WORKDIR /home/vpaadmin
 
 CMD ["bash"]
