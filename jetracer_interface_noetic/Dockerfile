@@ -1,18 +1,42 @@
-FROM ros:noetic-robot-focal
+# Start from NVIDIA L4T base image for Jetson
+FROM nvcr.io/nvidia/l4t-base:r32.6.1
 
 ENV DEBIAN_FRONTEND=noninteractive \
     TZ=Europe/Berlin
 
-# Update and install Python setuptools and other dependencies
+# Install necessary packages including Python setuptools and pip
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    lsb-release \
+    gnupg2 \
+    curl \
+    sudo \
     python3-setuptools \
     python3-pip \
-    sudo \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python packages with pip
 RUN pip3 install traitlets Jetson.GPIO
+
+# Add the ROS repository
+RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+
+# Import the ROS GPG key
+RUN curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add -
+
+# Install ROS Noetic
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-noetic-ros-base \
+    python3-rosdep \
+    python3-rosinstall \
+    python3-rosinstall-generator \
+    python3-wstool \
+    build-essential \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Initialize rosdep
+RUN rosdep init && rosdep update
 
 # Create a non-root user
 RUN useradd -m -s /bin/bash vpaadmin \
