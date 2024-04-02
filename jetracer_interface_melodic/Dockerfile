@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Create a non-root user
 RUN useradd -m -s /bin/bash vpaadmin \
-    && echo "vpaadmin:vpaadmin" | chpasswd \
+    && echo "vpaadmin:vpaduck" | chpasswd \
     && echo "vpaadmin ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 USER vpaadmin
