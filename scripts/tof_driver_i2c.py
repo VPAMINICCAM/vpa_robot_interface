@@ -18,7 +18,7 @@ class ToFDriverNode:
         self._timer       = rospy.Timer(rospy.Duration(1/10),self._read_data)
         self._publish_res = rospy.Timer(rospy.Duration(1/5),self._publish_data)
 
-        self._pub_tof     = rospy.Publisher('/tof_distance',Range,queue_size=1)
+        self._pub_tof     = rospy.Publisher('tof_distance',Range,queue_size=1)
 
         self.tof_distance = 5
         
