@@ -7,6 +7,10 @@ class ToFVL53L1X(object):
         self.range = 1
         self.tof = VL53L1X.VL53L1X(i2c_bus=bus_num, i2c_address = self.address)
         self.start_sensor()
+        
+        self.my_roi = VL53L1X.VL53L1xUserRoi(tlx=0,tly=0,brx=7,brx=7)
+        self.tof.set_user_roi(self.my_roi)
+        
     def start_sensor(self):
         time.sleep(0.2)
 
