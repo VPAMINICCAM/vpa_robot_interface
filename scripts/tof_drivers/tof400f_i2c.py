@@ -4,11 +4,11 @@ class ToFVL53L1X(object):
     def __init__(self, address,bus_num):
         self.address = address
         # 1 = Short Range, 2 = Medium Range, 3 = Long Range 
-        self.range = 1
+        self.range = 3
         self.tof = VL53L1X.VL53L1X(i2c_bus=bus_num, i2c_address = self.address)
         self.start_sensor()
         
-        self.my_roi = VL53L1X.VL53L1xUserRoi(tlx=6,tly=6,brx=9,bry=9)
+        self.my_roi = VL53L1X.VL53L1xUserRoi(tlx=0,tly=6,brx=3,bry=9)
         self.tof.set_user_roi(self.my_roi)
         
     def start_sensor(self):
@@ -16,7 +16,7 @@ class ToFVL53L1X(object):
 
         self.tof.open()
         self.tof.start_ranging(self.range)
-
+        print('current timing budget: ',self.tof.get_timing())
 
     def stop_sensor(self):
         self.tof.stop_ranging()
