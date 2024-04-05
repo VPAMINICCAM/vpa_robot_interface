@@ -40,13 +40,13 @@ class ToFDriverNode:
         r.radiation_type    = Range.INFRARED
         r.field_of_view     = (15 / 180) * 3.14
         r.min_range         = 0.05
-        r.max_range         = 1.36
+        r.max_range         = 4
         r.range             = self.tof_distance
 
         self._pub_tof.publish(r)
     
     def shut_hook(self):
-        #self.tof.stop_sensor()
+        self.tof.stop_sensor()
         del self.tof
     
 if __name__ == '__main__':
