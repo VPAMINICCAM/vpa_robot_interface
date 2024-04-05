@@ -30,7 +30,7 @@ class ToFVL53L1X(object):
     def get_distance(self):
         distance = 0.0
         distance = self.tof.get_distance() * 0.001 # mm to m conversion
-        print(distance)
+        #print(distance)
         if distance > 0:
             return distance
         else:
