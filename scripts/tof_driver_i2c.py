@@ -16,9 +16,9 @@ class ToFDriverNode:
             self.veh_name = 'db19'
             
         self._timer       = rospy.Timer(rospy.Duration(1/10),self._read_data)
-        self._publish_res = rospy.Timer(rospy.Duration(1/5),self._publish_data)
+        self._publish_res = rospy.Timer(rospy.Duration(1/10),self._publish_data)
 
-        self._pub_tof     = rospy.Publisher('/tof_distance',Range,queue_size=1)
+        self._pub_tof     = rospy.Publisher('tof_distance',Range,queue_size=1)
 
         self.tof_distance = 5
         
@@ -38,15 +38,15 @@ class ToFDriverNode:
         r.header.stamp      = rospy.Time.now()
         r.header.frame_id   = '/tof_sensor'
         r.radiation_type    = Range.INFRARED
-        r.field_of_view     = (27 / 180) * 3.14
+        r.field_of_view     = (15 / 180) * 3.14
         r.min_range         = 0.05
-        r.max_range         = 1.36
+        r.max_range         = 4
         r.range             = self.tof_distance
 
         self._pub_tof.publish(r)
     
     def shut_hook(self):
-        #self.tof.stop_sensor()
+        self.tof.stop_sensor()
         del self.tof
     
 if __name__ == '__main__':

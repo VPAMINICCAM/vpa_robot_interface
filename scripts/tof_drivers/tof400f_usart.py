@@ -8,7 +8,7 @@ import rospy
 class ToF400F:
 
     def __init__(self) -> None:
-        self.serial = serial.Serial('/dev/ttyAMA0',115200)
+        self.serial = serial.Serial('/dev/ttyUSB0',115200)
         if self.serial.isOpen() :
             rospy.loginfo("tof usart: open success")
         else :

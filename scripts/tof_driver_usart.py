@@ -2,7 +2,7 @@
 
 import rospy
 
-from tof_drivers.tof400f-usart import ToF400F
+from tof_drivers.tof400f_usart import ToF400F
 
 from sensor_msgs.msg import Range
 
