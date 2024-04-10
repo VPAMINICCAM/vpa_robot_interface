@@ -175,6 +175,8 @@ class WheelEncodersNode:
         msg_to_send = WheelsEncoder()
         msg_to_send.omega_left  = self.omega_left
         msg_to_send.omega_right = self.omega_right
+        msg_to_send.left_ticks  = self._tick_left
+        msg_to_send.right_ticks = self._tick_right
 
         self.pub_omega.publish(msg_to_send)
 
