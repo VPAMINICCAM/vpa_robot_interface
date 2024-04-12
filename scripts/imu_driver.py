@@ -2,6 +2,7 @@
 # this script based on: https://github.com/OSUrobotics/mpu_6050_driver/blob/master/scripts/imu_node.py 
 
 import smbus
+import socket
 import rospy
 import numpy as np
 from sensor_msgs.msg import Temperature, Imu
@@ -79,7 +80,7 @@ imu_pub = None
 
 if __name__ == '__main__':
     rospy.init_node('imu_node')
-
+    robot_name = socket.gethostname()
     bus     = smbus.SMBus(rospy.get_param('~bus', 6))
     ADDR    = rospy.get_param('~device_address', 0x68)
     if type(ADDR) == str:
@@ -94,4 +95,5 @@ if __name__ == '__main__':
     imu_pub     = rospy.Publisher('imu', Imu,queue_size=1)
     imu_timer   = rospy.Timer(rospy.Duration(1/20), publish_imu)
     temp_timer  = rospy.Timer(rospy.Duration(10), publish_temp)
+    rospy.loginfo("%s: imu sensor ready",robot_name)
     rospy.spin()
