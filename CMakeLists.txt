@@ -2,17 +2,23 @@ cmake_minimum_required(VERSION 3.0.2)
 project(vpa_robot_interface)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++0x)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  roscpp
   rospy
-  message_generation
   std_msgs
+  message_generation
+  sensor_msgs
+  tf
+  nav_msgs
+  serial
 )
-
+find_package(Eigen3 REQUIRED)
+SET(Eigen3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIRS})
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -104,11 +110,10 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES vpa_robot_interface
-   CATKIN_DEPENDS rospy std_msgs message_runtime
-#  DEPENDS system_lib
+  CATKIN_DEPENDS message_runtime roscpp rospy std_msgs sensor_msgs tf nav_msgs serial
+  DEPENDS Eigen3
 )
+
 
 ###########
 ## Build ##
@@ -117,9 +122,12 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  include
+  src
   ${catkin_INCLUDE_DIRS}
+  ${Eigen3_INCLUDE_DIRS}
 )
+
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
@@ -135,7 +143,14 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/vpa_robot_interface_node.cpp)
+add_executable(ahrs_driver src/ahrs_driver.cpp)
+target_link_libraries(ahrs_driver crc_table ${catkin_LIBRARIES})# ${SERIAL_LIB}
 
+add_executable(imu_tf src/imu_tf.cpp)
+target_link_libraries( imu_tf ${catkin_LIBRARIES})# ${SERIAL_LIB}
+
+## crc_table
+add_library(crc_table src/crc_table.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use

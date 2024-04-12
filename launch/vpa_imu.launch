@@ -1,0 +1,32 @@
+<launch>
+  <arg name="publish_tf" default="false"/>
+  <node pkg="vpa_robot_interface" name="ahrs_driver" type="ahrs_driver" output="screen" >
+    <!-- output debug -->
+    <param name="debug"  value="false"/>
+    
+    <!-- port set by fix_usb_port.sh -->
+
+    <param name="port"  value="/dev/fdilink_ahrs"/>
+    <param name="baud"  value="115200"/>
+    <!-- not everything is being published, preset on pc interface, now only imu -->
+    <param name="imu_topic"  value="imu"/>
+
+    <param name="imu_frame"  value="gyro_link"/>
+
+    <param name="mag_pose_2d_topic"  value="mag_pose_2d"/>
+    <param name="Euler_angles_pub_"  value="euler_angles"/>
+    <param name="Magnetic_pub_"  value="magnetic"/>
+    <param name="gps_topic_" value="gps/fix"/>
+    <param name="twist_topic_" value="system_speed"/>
+    <param name="NED_odom_topic_" value="NED_odometry"/>
+    <param name="device_type"  value="1"/> <!-- 0: origin_data, 1: for single imu or ucar in ROS, 2:for Xiao in ROS -->
+  </node>
+  <group if="$(arg publish_tf)">
+    <node pkg="vpa_robot_interface" name="imu_tf" type="imu_tf" output="screen" >
+      <param name="imu_topic"  value="/imu"/>
+      <param name="position_x"  value="1"/>
+      <param name="position_y"  value="1"/>
+      <param name="position_z"  value="0"/>
+    </node>
+  </group>
+</launch> 
