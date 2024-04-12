@@ -1,7 +1,7 @@
 <launch>
     <arg name="imu_publish_freq_hz" default="20"/>
     <arg name="i2c_bus" default="6"/>
-    <arg name="i2c_addr" type="string" default="0x68"/>
+    <arg name="i2c_addr" default="0x68"/>
     <arg name="frame_link" default="imu_link"/>
     <node name="imu_sensor" pkg="vpa_robot_interface" type="imu_driver.py" output="screen" required="true">
         <param name="bus" value="$(arg i2c_bus)"/>
