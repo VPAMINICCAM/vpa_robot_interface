@@ -4,7 +4,7 @@ import rospy
 from enum import IntEnum
 
 import RPi.GPIO as GPIO
-
+import socket
 from vpa_robot_interface.msg import WheelsCmd,WheelsEncoder
 from math import pi
 
@@ -49,9 +49,7 @@ class WheelEncoderDriver:
 class WheelEncodersNode:
 
     def __init__(self) -> None:
-        self.veh_name           = rospy.get_namespace().strip("/")
-        if len(self.veh_name) == 0:
-            self.veh_name = 'db19'
+        self.veh_name           = socket.gethostname()
         
         self._publish_frequency = 20
         self._resolution        = 135

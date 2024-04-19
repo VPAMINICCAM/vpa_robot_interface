@@ -182,6 +182,10 @@ class WheelDriverNode:
         self.estop = msg.data
         rospy.loginfo_once('%s: global brake: %s',self.veh_name,str(msg.data))
 
+    def estop_local_cb(self,msg:Bool) -> None:
+        self.local_estop = msg.data
+        rospy.loginfo_once('%s: local brake: %s',self.veh_name,str(msg.data))        
+    
     def shut_hook(self) -> None:
         self.estop = True
         self.driver.set_wheels_throttle(left=0,right=0)
