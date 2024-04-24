@@ -47,7 +47,6 @@ class ToFDriverNode:
     
     def shut_hook(self):
         self.tof.stop_sensor()
-        del self.tof
     
 if __name__ == '__main__':
 
