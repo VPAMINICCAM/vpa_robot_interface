@@ -1,14 +1,12 @@
 <launch>
-    <arg name="height" default="320"/>
-    <arg name="width" default="240"/>
+    <arg name="height" default="240"/>
+    <arg name="width" default="320"/>
     <arg name="fps" default="10"/>
     <!-- Add an argument for camera_info_url with a default value -->
-    <arg name="camera_info_url" default="file://$(find vpa_robot_interface)/config/fisheye_calibration.ini"/>
+    <arg name="camera_info_url" default="file://$(find vpa_robot_interface)/config/camera_default.yaml"/>
     
     <node name="robot_cam" pkg="usb_cam" type="usb_cam_node" output="screen">
         <param name="video_device" value="/dev/video0" />
-        <!-- Note: The image_width is mistakenly set to $(arg height) and image_height to $(arg width). 
-             It might be intended the other way around. -->
         <param name="image_width" value="$(arg width)" />
         <param name="image_height" value="$(arg height)" />
         <param name="pixel_format" value="yuyv" />
