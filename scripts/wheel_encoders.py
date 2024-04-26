@@ -88,7 +88,7 @@ class WheelEncodersNode:
 
     def signal_shut(self,msg:Bool):
         if msg.data:
-            rospy.signal_shutdown('%s: encoder sensor node shutdown',self.veh_name)
+            rospy.signal_shutdown('encoder node shutdown')
 
     def dir_cb(self,msg:WheelsCmd):
         

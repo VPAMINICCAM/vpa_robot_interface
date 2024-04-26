@@ -164,7 +164,7 @@ class WheelDriverNode:
         
     def signal_shut(self,msg:Bool):
         if msg.data:
-            rospy.signal_shutdown('%s: tof sensor node shutdown',self.veh_name)
+            rospy.signal_shutdown('wheel driver node shutdown'
 
     def car_cmd_cb(self,msg_car_cmd:Twist) -> None:
         msg_car_cmd.linear.x    = max(min(msg_car_cmd.linear.x,self._v_max),-self._v_max)

@@ -28,7 +28,7 @@ class ToFDriverNode:
 
     def signal_shut(self,msg:Bool):
         if msg.data:
-            rospy.signal_shutdown('%s: tof sensor node shutdown',self.veh_name)
+            rospy.signal_shutdown('tof sensor node shutdown')
 
     def _read_data(self,_):
 
