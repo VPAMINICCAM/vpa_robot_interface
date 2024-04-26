@@ -6,6 +6,7 @@ import socket
 import rospy
 import numpy as np
 from sensor_msgs.msg import Temperature, Imu
+from std_msgs.msg import Bool
 from tf.transformations import quaternion_about_axis
 from mpu_6050_driver.registers import PWR_MGMT_1, ACCEL_XOUT_H, ACCEL_YOUT_H, ACCEL_ZOUT_H, TEMP_H,\
     GYRO_XOUT_H, GYRO_YOUT_H, GYRO_ZOUT_H
@@ -74,12 +75,17 @@ def publish_imu(timer_event):
 
     imu_pub.publish(imu_msg)
 
+def signal_shut(msg:Bool):
+    if msg.data:
+        rospy.signal_shutdown('IMU sensor node shutdown')
+
 
 temp_pub = None
 imu_pub = None
 
 if __name__ == '__main__':
     rospy.init_node('imu_node')
+    rospy.Subscriber("robot_interface_shutdown", Bool,signal_shut)
     robot_name = socket.gethostname()
     bus     = smbus.SMBus(rospy.get_param('~bus', 6))
     ADDR    = rospy.get_param('~device_address', 0x68)

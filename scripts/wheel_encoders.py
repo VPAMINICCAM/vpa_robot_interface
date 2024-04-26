@@ -7,7 +7,7 @@ import RPi.GPIO as GPIO
 import socket
 from vpa_robot_interface.msg import WheelsCmd,WheelsEncoder
 from math import pi
-
+from std_msgs.msg import Bool
 class WheelDirection(IntEnum):
     FORWARD = 1
     REVERSE = -1
@@ -84,7 +84,12 @@ class WheelEncodersNode:
         self._timer_omega = rospy.Timer(rospy.Duration(1/50),self._omega_reduce_cb)
 
         rospy.loginfo("%s: wheel encoders ready",self.veh_name)
-    
+        rospy.Subscriber("robot_interface_shutdown", Bool, self.signal_shut)
+
+    def signal_shut(self,msg:Bool):
+        if msg.data:
+            rospy.signal_shutdown('%s: encoder sensor node shutdown',self.veh_name)
+
     def dir_cb(self,msg:WheelsCmd):
         
         if msg.throttle_left < 0:

@@ -156,11 +156,15 @@ class WheelDriverNode:
         self.sub_e_stop         = rospy.Subscriber("/global_brake", Bool, self.estop_cb, queue_size=1)
         self.sub_local_e_stop   = rospy.Subscriber("local_brake", Bool, self.estop_local_cb, queue_size=1)
         self.pub_wheel_debug = rospy.Publisher('wheel_ref',WheelsCmd,queue_size=1)
-        
+        rospy.Subscriber("robot_interface_shutdown", Bool, self.signal_shut)
         # self.pub_wheel_dir = rospy.Publisher('wheel_direction')
         
         self.srv = Server(omegaConfig,self.dynamic_reconfigure_callback)
         rospy.loginfo("%s: wheel drivers ready",self.veh_name)
+        
+    def signal_shut(self,msg:Bool):
+        if msg.data:
+            rospy.signal_shutdown('%s: tof sensor node shutdown',self.veh_name)
 
     def car_cmd_cb(self,msg_car_cmd:Twist) -> None:
         msg_car_cmd.linear.x    = max(min(msg_car_cmd.linear.x,self._v_max),-self._v_max)

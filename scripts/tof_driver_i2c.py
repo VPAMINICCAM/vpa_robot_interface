@@ -3,7 +3,7 @@ import rospy
 
 from tof_drivers.tof400f_i2c import ToFVL53L1X
 from sensor_msgs.msg import Range
-
+from std_msgs.msg import Bool
 class ToFDriverNode:
 
     def __init__(self) -> None:
@@ -23,7 +23,13 @@ class ToFDriverNode:
         self.tof_distance = 5
         
         rospy.loginfo("%s: tof sensor ready",self.veh_name)
-        
+    
+        rospy.Subscriber("robot_interface_shutdown", Bool, self.signal_shut)
+
+    def signal_shut(self,msg:Bool):
+        if msg.data:
+            rospy.signal_shutdown('%s: tof sensor node shutdown',self.veh_name)
+
     def _read_data(self,_):
 
         value = self.tof.get_distance()
