@@ -15,7 +15,11 @@ class PI_controller:
         self.err_record = err
 
     def pi_control(self,ref,sig) -> float:
-
+        
+        if ref == 0:
+            self.reset_controller()
+            return 0
+        
         err = ref - sig
         delta_err = err - self.err_record
         
