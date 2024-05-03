@@ -146,9 +146,10 @@ class WheelDriverNode:
         if os.path.exists(filepath):
             rospy.loginfo("%s: load customize tuning",self.veh_name)
             from adafruit_drivers.kinematics import trim
+            self.trim = trim
         else:
             rospy.loginfo("%s: default tuning",self.veh_name)
-            trim = 0
+            self.trim = 0
             
         self.estop         = True
         rospy.loginfo("%s: global brake activated",self.veh_name)
@@ -179,8 +180,8 @@ class WheelDriverNode:
         msg_car_cmd.linear.x    = max(min(msg_car_cmd.linear.x,self._v_max),-self._v_max)
         msg_car_cmd.angular.z   = max(min(msg_car_cmd.angular.z,self._omega_max),-self._omega_max)
         if not self.estop:
-            self.omega_right_ref    = ((msg_car_cmd.linear.x + 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) * (1 + trim)
-            self.omega_left_ref     = ((msg_car_cmd.linear.x - 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) * (1 - trim)
+            self.omega_right_ref    = ((msg_car_cmd.linear.x + 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) * (1 + self.trim)
+            self.omega_left_ref     = ((msg_car_cmd.linear.x - 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) * (1 - self.trim)
         else:
             self.omega_right_ref    = 0
             self.omega_left_ref     = 0
