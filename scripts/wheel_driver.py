@@ -3,7 +3,7 @@
 import rospy
 import socket
 from math import fabs, floor
-
+import os
 from dt_config.dt_hardware_settings import MotorDirection, HATv2
 
 from vpa_robot_interface.msg import WheelsCmd,WheelsEncoder
@@ -140,7 +140,14 @@ class WheelDriverNode:
         self._radius    = 0.0318    # radius of wheels
 
         # Global brake
-
+        
+        if os.path.exists('adafruit_drivers/kinematics.py'):
+            rospy.loginfo("%s: load customize tuning",self.veh_name)
+            from adafruit_drivers.kinematic import trim
+        else:
+            rospy.loginfo("%s: default tuning",self.veh_name)
+            trim = 0
+            
         self.estop         = True
         rospy.loginfo("%s: global brake activated",self.veh_name)
         self.local_estop   = True
@@ -170,8 +177,8 @@ class WheelDriverNode:
         msg_car_cmd.linear.x    = max(min(msg_car_cmd.linear.x,self._v_max),-self._v_max)
         msg_car_cmd.angular.z   = max(min(msg_car_cmd.angular.z,self._omega_max),-self._omega_max)
         if not self.estop:
-            self.omega_right_ref    = (msg_car_cmd.linear.x + 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius
-            self.omega_left_ref     = (msg_car_cmd.linear.x - 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius
+            self.omega_right_ref    = ((msg_car_cmd.linear.x + 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) * (1 + trim)
+            self.omega_left_ref     = ((msg_car_cmd.linear.x - 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) * (1 - trim)
         else:
             self.omega_right_ref    = 0
             self.omega_left_ref     = 0
