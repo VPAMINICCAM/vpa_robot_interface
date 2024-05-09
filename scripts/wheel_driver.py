@@ -116,7 +116,8 @@ class WheelDriverNode:
         self.direct_mode    = rospy.get_param('~direct_mode',False)
 
         self.driver = WheelDriver()
-        
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        filepath = os.path.join(script_dir,'adafruit_drivers/kinematics.py')
         if os.path.exists(filepath):
             rospy.loginfo("%s: load customize tuning",self.veh_name)
             from adafruit_drivers.kinematics import kp,ki
@@ -147,8 +148,7 @@ class WheelDriverNode:
 
         # Global brake
         
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        filepath = os.path.join(script_dir,'adafruit_drivers/kinematics.py')
+
         if os.path.exists(filepath):
             from adafruit_drivers.kinematics import trim
             self.trim = trim
