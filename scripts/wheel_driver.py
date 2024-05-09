@@ -116,9 +116,15 @@ class WheelDriverNode:
         self.direct_mode    = rospy.get_param('~direct_mode',False)
 
         self.driver = WheelDriver()
-
-        self.kp     = 0.1
-        self.ki     = 0.005
+        
+        if os.path.exists(filepath):
+            rospy.loginfo("%s: load customize tuning",self.veh_name)
+            from adafruit_drivers.kinematics import kp,ki
+            self.kp     = kp
+            self.ki     = ki
+        else:
+            self.kp     = 0.1
+            self.ki     = 0.005
 
         self.omega_controller_left  = PI_controller(ki=self.ki,kp=self.kp)
         self.omega_controller_right = PI_controller(ki=self.ki,kp=self.kp)
@@ -144,11 +150,9 @@ class WheelDriverNode:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         filepath = os.path.join(script_dir,'adafruit_drivers/kinematics.py')
         if os.path.exists(filepath):
-            rospy.loginfo("%s: load customize tuning",self.veh_name)
             from adafruit_drivers.kinematics import trim
             self.trim = trim
         else:
-            rospy.loginfo("%s: default tuning",self.veh_name)
             self.trim = 0
             
         self.estop         = True
