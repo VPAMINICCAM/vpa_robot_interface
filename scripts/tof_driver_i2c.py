@@ -15,13 +15,12 @@ class ToFDriverNode:
         if len(self.veh_name) == 0:
             self.veh_name = 'db19'
         self.tof_distance = 5
+        self._pub_tof     = rospy.Publisher('tof_distance',Range,queue_size=1)
         self._timer       = rospy.Timer(rospy.Duration(1/10),self._read_data)
         self._publish_res = rospy.Timer(rospy.Duration(1/10),self._publish_data)
 
-        self._pub_tof     = rospy.Publisher('tof_distance',Range,queue_size=1)
+        
 
-        
-        
         rospy.loginfo("%s: tof sensor ready",self.veh_name)
     
         rospy.Subscriber("robot_interface_shutdown", Bool, self.signal_shut)
