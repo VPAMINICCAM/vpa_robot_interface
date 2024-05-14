@@ -63,7 +63,7 @@ def publish_imu(timer_event):
     o = imu_msg.orientation
     o.x, o.y, o.z, o.w = orientation
 
-    imu_msg.linear_acceleration.x = accel_x
+    imu_msg.linear_acceleration.x = -accel_x
     imu_msg.linear_acceleration.y = accel_y
     imu_msg.linear_acceleration.z = accel_z
 
