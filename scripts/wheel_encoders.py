@@ -81,14 +81,14 @@ class WheelEncodersNode:
         self.right_driver   = WheelEncoderDriver(self.right_gpio,self.right_enc_cb) 
 
         self._timer       = rospy.Timer(rospy.Duration(1.0 / self._publish_frequency), self._cb_publish)
-        self._timer_omega = rospy.Timer(rospy.Duration(1/50),self._omega_reduce_cb)
+        self._timer_omega = rospy.Timer(rospy.Duration(1/20),self._omega_reduce_cb)
 
         rospy.loginfo("%s: wheel encoders ready",self.veh_name)
         rospy.Subscriber("robot_interface_shutdown", Bool, self.signal_shut)
 
     def signal_shut(self,msg:Bool):
         if msg.data:
-            rospy.signal_shutdown('%s: encoder sensor node shutdown',self.veh_name)
+            rospy.signal_shutdown('encoder node shutdown')
 
     def dir_cb(self,msg:WheelsCmd):
         
@@ -109,13 +109,13 @@ class WheelEncodersNode:
             self.omega_left = 0
             self.omega_window_left = []
             self.window_pointer_left = 0
-        
+        self._tick_left_last = self._tick_left
         if self._tick_right == self._tick_right_last:
             # no change for about 20ms -> wheel is not spining or very slow
             self.omega_right = 0
             self.omega_window_right = []
             self.window_pointer_right = 0        
-            
+        self._tick_right_last = self._tick_right            
 
     def left_enc_cb(self, tick_no) -> None:
 
@@ -131,9 +131,15 @@ class WheelEncodersNode:
             self._last_tick_timing_left = now
             if self._tick_left > self._tick_left_last:
                 _omega = (2*pi/self._resolution)/delat_t
-            else:
+                if abs(_omega) > 20:
+                    _omega = 20
+                self.stop_counter_left = 0
+            elif self._tick_left < self._tick_left_last:
                 _omega = (-2*pi/self._resolution)/delat_t
-            self._tick_left_last = self._tick_left
+                if abs(_omega) > 20:
+                    _omega = -20
+
+           
             if len(self.omega_window_left) < self.window_length:
                 self.omega_window_left.append(_omega)
             else:
@@ -156,9 +162,14 @@ class WheelEncodersNode:
             self._last_tick_timing_right = now
             if self._tick_right > self._tick_right_last:
                 _omega = (2*pi/self._resolution)/delat_t
-            else:
+                if abs(_omega) > 20:
+                    _omega = 20
+            elif self._tick_right < self._tick_right_last:
                 _omega = (-2*pi/self._resolution)/delat_t
-            self._tick_right_last = self._tick_right
+                if abs(_omega) > 20:
+                    _omega = -20
+            
+            
             if len(self.omega_window_right) < self.window_length:
                 self.omega_window_right.append(_omega)
             else:

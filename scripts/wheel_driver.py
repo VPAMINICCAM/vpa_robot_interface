@@ -3,7 +3,7 @@
 import rospy
 import socket
 from math import fabs, floor
-
+import os
 from dt_config.dt_hardware_settings import MotorDirection, HATv2
 
 from vpa_robot_interface.msg import WheelsCmd,WheelsEncoder
@@ -116,9 +116,16 @@ class WheelDriverNode:
         self.direct_mode    = rospy.get_param('~direct_mode',False)
 
         self.driver = WheelDriver()
-
-        self.kp     = 0.15
-        self.ki     = 0.005
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        filepath = os.path.join(script_dir,'adafruit_drivers/kinematics.py')
+        if os.path.exists(filepath):
+            rospy.loginfo("%s: load customize tuning",self.veh_name)
+            from adafruit_drivers.kinematics import kp,ki
+            self.kp     = kp
+            self.ki     = ki
+        else:
+            self.kp     = 0.1
+            self.ki     = 0.005
 
         self.omega_controller_left  = PI_controller(ki=self.ki,kp=self.kp)
         self.omega_controller_right = PI_controller(ki=self.ki,kp=self.kp)
@@ -140,7 +147,14 @@ class WheelDriverNode:
         self._radius    = 0.0318    # radius of wheels
 
         # Global brake
+        
 
+        if os.path.exists(filepath):
+            from adafruit_drivers.kinematics import trim
+            self.trim = trim
+        else:
+            self.trim = 0
+            
         self.estop         = True
         rospy.loginfo("%s: global brake activated",self.veh_name)
         self.local_estop   = True
@@ -164,14 +178,14 @@ class WheelDriverNode:
         
     def signal_shut(self,msg:Bool):
         if msg.data:
-            rospy.signal_shutdown('%s: tof sensor node shutdown',self.veh_name)
+            rospy.signal_shutdown('wheel driver node shutdown')
 
     def car_cmd_cb(self,msg_car_cmd:Twist) -> None:
         msg_car_cmd.linear.x    = max(min(msg_car_cmd.linear.x,self._v_max),-self._v_max)
         msg_car_cmd.angular.z   = max(min(msg_car_cmd.angular.z,self._omega_max),-self._omega_max)
         if not self.estop:
-            self.omega_right_ref    = (msg_car_cmd.linear.x + 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius
-            self.omega_left_ref     = (msg_car_cmd.linear.x - 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius
+            self.omega_right_ref    = ((msg_car_cmd.linear.x + 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) * (1 + self.trim)
+            self.omega_left_ref     = ((msg_car_cmd.linear.x - 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) * (1 - self.trim)
         else:
             self.omega_right_ref    = 0
             self.omega_left_ref     = 0
