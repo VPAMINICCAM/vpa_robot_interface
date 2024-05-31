@@ -33,6 +33,8 @@ class WheelEncoderDriver:
         
         self._direction = 1 # because the encodes has one single phase, no reliable to get direction now
 
+
+        
     def get_direction(self) -> WheelDirection:
         return self._direction
 
@@ -51,6 +53,7 @@ class WheelEncodersNode:
     def __init__(self) -> None:
         self.veh_name           = socket.gethostname()
         
+        self.seq = 0
         self._publish_frequency = 20
         self._resolution        = 135
         self.left_gpio          = 18
@@ -179,14 +182,20 @@ class WheelEncodersNode:
                     self.window_pointer_right = 0 
 
     def _cb_publish(self,_):
+        self.seq += 1
         
         if len(self.omega_window_left) > 0:
             self.omega_left = sum(self.omega_window_left)/len(self.omega_window_left)
             
         if len(self.omega_window_right) > 0:
             self.omega_right = sum(self.omega_window_right)/len(self.omega_window_right)
-
+        
+        now = rospy.Time.now()
+        
         msg_to_send = WheelsEncoder()
+        msg_to_send.header.seq = self.seq
+        msg_to_send.header.stamp.secs   = now.secs
+        msg_to_send.header.stamp.nsecs  = now.nsecs
         msg_to_send.omega_left  = self.omega_left
         msg_to_send.omega_right = self.omega_right
         msg_to_send.left_ticks  = self._tick_left
