@@ -45,10 +45,17 @@ class JOY2TWIST:
         
         msg = WheelsCmd()
         k = 0.8
-        msg.throttle_left   = left_UD * (1 - k * right_LR)
-        msg.throttle_right  = left_UD * (1 + k * right_LR)
+        msg.throttle_left   = self.bound_output(left_UD * (1 - k * right_LR))
+        msg.throttle_right  = self.bound_output(left_UD * (1 + k * right_LR))
         
         self.pub_cmd.publish(msg)
+    
+    def bound_output(self,input) -> float:
+        if input > 0.8:
+            return 0.8
+        elif input < -0.3:
+            return -0.3
+        return input
     
     def latch_lock(self,event):
         self.latch_flag = False
