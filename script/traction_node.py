@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import rospy
-import socke
+import socket
 
 from donkey.actutaor import PCA9685
 
@@ -19,6 +19,7 @@ class PiRacerActutaor:
 
     def __init__(self) -> None:
 
+        self.robot_name = socket.gethostname()
         self.steer_controller    = PCA9685(STEERING_CHN,I2C_ADDR)
         # steering 
         
@@ -26,6 +27,7 @@ class PiRacerActutaor:
         # throttle
 
         self.cmd_sub = rospy.Subscriber('movement',DirectCmd,self.move_cb)
+        rospy.loginfo('%s: actutaors node activated')
 
     def move_cb(self,data:DirectCmd):
 
