@@ -59,6 +59,6 @@ class PiRacerActutaor:
             return THROTTLE_REVERSE_PWM + k * ratio
 
 if __name__ == "__main__":
-    rospy.init_node('Actuator')
+    rospy.init_node('Actutaor')
     T = PiRacerActutaor()
     rospy.spin()
