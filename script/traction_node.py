@@ -27,7 +27,7 @@ class PiRacerActutaor:
         # throttle
 
         self.cmd_sub = rospy.Subscriber('movement',DirectCmd,self.move_cb)
-        rospy.loginfo('%s: actutaors node activated')
+        rospy.loginfo('%s: actutaors node activated',self.robot_name)
 
     def move_cb(self,data:DirectCmd):
 

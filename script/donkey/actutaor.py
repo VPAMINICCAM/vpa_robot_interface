@@ -57,7 +57,6 @@ class PCA9685:
         self.default_freq = 60
         self.pwm_scale = frequency / self.default_freq
 
-        I2C.get_default_bus = busnum
         self.pwm = Adafruit_PCA9685.PCA9685(address=address)
         self.pwm.set_pwm_freq(frequency)
         self.channel = channel
