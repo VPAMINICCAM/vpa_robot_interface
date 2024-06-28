@@ -1,0 +1,3 @@
+<launch>
+    <node name="actuator" pkg="vpa_robot_interface" type="traction_node.py" output="screen" required="true"/>
+</launch>
