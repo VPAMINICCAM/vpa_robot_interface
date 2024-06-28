@@ -16,7 +16,7 @@ class JOYDRIVER:
         self.sub_joy = rospy.Subscriber('joy',Joy,self.joy_cb)
         self.pub_brk = rospy.Publisher('local_brake',Bool,queue_size=1)
         self.pub_cmd = rospy.Publisher('actuator_cmd',DirectCmd,queue_size=1)
-        
+        self.throttle_upper = rospy.get_param('~gas_max',0.3)
         rospy.loginfo("%s: joystick ready",self.robot_name)
     
     def joy_cb(self,data:Joy):
@@ -50,8 +50,8 @@ class JOYDRIVER:
         self.pub_cmd.publish(msg)
         
     def bound_output(self,input) -> float:
-        if input > 0.2:
-            return 0.2
+        if input > self.throttle_upper:
+            return self.throttle_upper
         elif input < -0.5:
             return -0.5
         return input
