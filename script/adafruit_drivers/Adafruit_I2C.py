@@ -40,7 +40,6 @@ class Adafruit_I2C(object):
         # Alternatively, you can hard-code the bus version below:
         # self.bus = smbus.SMBus(0); # Force I2C0 (early 256MB Pi's)
         self.bus = smbus.SMBus(busnum if busnum >= 0 else Adafruit_I2C.getPiI2CBusNumber())
-        print('I2C Bus Number: ',self.bus)
         self.debug = False
 
     def reverseByteOrder(self, data):

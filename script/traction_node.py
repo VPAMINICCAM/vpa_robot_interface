@@ -27,7 +27,7 @@ class PiRacerActutaor:
         self.pwm = PWM()             # call this modified version of PWM
         self.pwm.setPWMFreq(60)      # set oerating PWM frequency
         rospy.on_shutdown(self.shut_hook)
-        self.sub_cmd = rospy.rospy.Subscriber("actuator_cmd",DirectCmd,self.actuator_cb)
+        self.sub_cmd = rospy.Subscriber("actuator_cmd",DirectCmd,self.actuator_cb)
         rospy.loginfo('%s: traction node ready',self.robot_name)
 
         self.set_idle()
@@ -35,8 +35,8 @@ class PiRacerActutaor:
         rospy.loginfo('%s: steering set forward and throttle set idle',self.robot_name)
 
     def set_idle(self):
-        self.pwm.setPWM(STEERING_CNN,int((STEERING_LEFT_PWM+STEERING_RIGHT_PWM)/2))
-        self.pwm.setPWM(THROTTLE_CHN,THROTTLE_STOPPED_PWM)
+        self.pwm.setPWM(STEERING_CNN,0,int((STEERING_LEFT_PWM+STEERING_RIGHT_PWM)/2))
+        self.pwm.setPWM(THROTTLE_CHN,0,THROTTLE_STOPPED_PWM)
 
     def actuator_cb(self,msg:DirectCmd):
 
@@ -53,12 +53,12 @@ class PiRacerActutaor:
         else:
             throttle_pwm = int((THROTTLE_STOPPED_PWM - THROTTLE_REVERSE_PWM) * throttle_ratio) + THROTTLE_REVERSE_PWM
 
-        self.pwm.setPWM(THROTTLE_CHN,throttle_pwm)
+        self.pwm.setPWM(THROTTLE_CHN,0,throttle_pwm)
 
         steer_gain = (STEERING_RIGHT_PWM - STEERING_LEFT_PWM)/2
         steer_pwm  = int(steer_pwm + (steer_gain * steer_ratio))
 
-        self.pwm.setPWM(STEERING_CNN,steer_pwm)
+        self.pwm.setPWM(STEERING_CNN,0,steer_pwm)
     
     def shut_hook(self):
 
