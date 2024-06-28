@@ -2,7 +2,6 @@
 
 import rospy
 import socket
-from math import fabs, floor
 from adafruit_drivers.Adafruit_PWM_Servo_Driver import PWM
 
 from vpa_robot_interface.msg import DirectCmd
@@ -27,9 +26,17 @@ class PiRacerActutaor:
         self.robot_name = socket.gethostname()
         self.pwm = PWM()             # call this modified version of PWM
         self.pwm.setPWMFreq(60)      # set oerating PWM frequency
-
+        rospy.on_shutdown(self.shut_hook)
         self.sub_cmd = rospy.rospy.Subscriber("actuator_cmd",DirectCmd,self.actuator_cb)
         rospy.loginfo('%s: traction node ready',self.robot_name)
+
+        self.set_idle()
+
+        rospy.loginfo('%s: steering set forward and throttle set idle',self.robot_name)
+
+    def set_idle(self):
+        self.pwm.setPWM(STEERING_CNN,int((STEERING_LEFT_PWM+STEERING_RIGHT_PWM)/2))
+        self.pwm.setPWM(THROTTLE_CHN,THROTTLE_STOPPED_PWM)
 
     def actuator_cb(self,msg:DirectCmd):
 
@@ -52,7 +59,12 @@ class PiRacerActutaor:
         steer_pwm  = int(steer_pwm + (steer_gain * steer_ratio))
 
         self.pwm.setPWM(STEERING_CNN,steer_pwm)
-        
+    
+    def shut_hook(self):
+
+        self.set_idle()
+        rospy.loginfo('%s: shutdown, reset actuators',self.robot_name)
+
 if __name__ == "__main__":
     rospy.init_node('Actutaor')
     T = PiRacerActutaor()
