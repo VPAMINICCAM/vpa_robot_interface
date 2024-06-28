@@ -32,7 +32,8 @@ class PiRacerActutaor:
         self.global_brake   = True
         
         self.sub_cmd = rospy.Subscriber("actuator_cmd",DirectCmd,self.actuator_cb)
-        self.sub_local_brk = rospy.Subscriber("local_brake",Bool,self.local_brk_cb)
+        self.sub_local_brk  = rospy.Subscriber("local_brake",Bool,self.local_brk_cb)
+        self.sub_global_brk = rospy.Subscriber("/global_brake",Bool,self.global_brk_cb)
         rospy.loginfo('%s: traction node ready',self.robot_name)
 
         self.set_idle()
