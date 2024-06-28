@@ -2,12 +2,15 @@
 
 import rospy
 import socket
+from math import fabs, floor
+from adafruit_drivers.Adafruit_PWM_Servo_Driver import PWM
 
-from donkey.actutaor import PCA9685
-
-from donkey import STEERING_CHN,THROTTLE_CHN,BUSNUM,I2C_ADDR
 from vpa_robot_interface.msg import DirectCmd
 
+''' 
+    Reference comments from donkeycar lib
+
+'''
 STEERING_LEFT_PWM       = 460
 STEERING_RIGHT_PWM      = 290
 
@@ -15,49 +18,41 @@ THROTTLE_FORWARD_PWM    = 500
 THROTTLE_STOPPED_PWM    = 370
 THROTTLE_REVERSE_PWM    = 220
 
+THROTTLE_CHN = 1
+STEERING_CNN = 0
+
 class PiRacerActutaor:
 
     def __init__(self) -> None:
-
-        self.robot_name = socket.gethostname()
-        self.steer_controller    = PCA9685(STEERING_CHN,I2C_ADDR)
-        # steering 
         
-        self.throttle_controller = PCA9685(THROTTLE_CHN,I2C_ADDR)
-        # throttle
+        self.pwm = PWM()             # call this modified version of PWM
+        self.pwm.setPWMFreq(60)      # set oerating PWM frequency
 
-        self.cmd_sub = rospy.Subscriber('movement',DirectCmd,self.move_cb)
-        rospy.loginfo('%s: actutaors node activated',self.robot_name)
+        self.sub_cmd = rospy.rospy.Subscriber("actuator_cmd",DirectCmd,self.actuator_cb)
 
-    def move_cb(self,data:DirectCmd):
 
-        throttle_cmd = data.throttle
-        steer_cmd    = data.steering
+    def actuator_cb(self,msg:DirectCmd):
 
-        # both of these values will be a value [-1,1]
-        dutycycle_throttle = self.ratio2throttleDutyCycle(throttle_cmd)
-        dutycycle_steer    = self.ratio2steerDutyCycle(steer_cmd)
+        throttle_ratio = msg.throttle
+        steer_ratio    = msg.steering
 
-        # convert information to wheels
-        self.steer_controller.set_duty_cycle(dutycycle_steer)
-        self.throttle_controller.set_duty_cycle(dutycycle_throttle)
+       
+        steer_pwm      = int((STEERING_LEFT_PWM+STEERING_RIGHT_PWM)/2)
 
-    def ratio2steerDutyCycle(self,ratio:float) -> int:
-
-        # define positive: left
-        k = (STEERING_RIGHT_PWM - STEERING_LEFT_PWM)/2
-        return (ratio + 1) * k + STEERING_LEFT_PWM
-    
-    def ratio2throttleDutyCycle(self,ratio:float) -> int:
-        if ratio == 0:
-            return THROTTLE_STOPPED_PWM
-        elif ratio > 0:
-            k = THROTTLE_FORWARD_PWM - THROTTLE_STOPPED_PWM
-            return THROTTLE_STOPPED_PWM + k * ratio
+        if throttle_ratio == 0:
+            throttle_pwm   = THROTTLE_STOPPED_PWM
+        elif throttle_ratio > 0:
+            throttle_pwm = int((THROTTLE_FORWARD_PWM - THROTTLE_STOPPED_PWM) * throttle_ratio) + THROTTLE_STOPPED_PWM
         else:
-            k = THROTTLE_STOPPED_PWM - THROTTLE_REVERSE_PWM
-            return THROTTLE_REVERSE_PWM + k * ratio
+            throttle_pwm = int((THROTTLE_STOPPED_PWM - THROTTLE_REVERSE_PWM) * throttle_ratio) + THROTTLE_REVERSE_PWM
 
+        self.pwm.setPWM(THROTTLE_CHN,throttle_pwm)
+
+        steer_gain = (STEERING_RIGHT_PWM - STEERING_LEFT_PWM)/2
+        steer_pwm  = int(steer_pwm + (steer_gain * steer_ratio))
+
+        self.pwm.setPWM(STEERING_CNN,steer_pwm)
+        
 if __name__ == "__main__":
     rospy.init_node('Actutaor')
     T = PiRacerActutaor()
