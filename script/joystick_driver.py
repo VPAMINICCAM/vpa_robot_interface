@@ -50,10 +50,10 @@ class JOYDRIVER:
         self.pub_cmd.publish(msg)
         
     def bound_output(self,input) -> float:
-        if input > 0.3:
-            return 0.3
-        elif input < -0.3:
-            return -0.3
+        if input > 0.2:
+            return 0.2
+        elif input < -0.5:
+            return -0.5
         return input
     
     def latch_lock(self,event):
