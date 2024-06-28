@@ -43,11 +43,15 @@ class JOYDRIVER:
         left_UD     = axes[1]
         right_LR    = axes[2]
         
-        print(left_UD,right_LR)
+        msg = DirectCmd()
+        msg.steering = -right_LR
+        msg.throttle = self.bound_output(left_UD)
+        
+        self.pub_cmd.publish(msg)
         
     def bound_output(self,input) -> float:
-        if input > 0.8:
-            return 0.8
+        if input > 0.3:
+            return 0.3
         elif input < -0.3:
             return -0.3
         return input
