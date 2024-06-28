@@ -15,7 +15,7 @@ class JOYDRIVER:
         self.timer = None
         self.sub_joy = rospy.Subscriber('joy',Joy,self.joy_cb)
         self.pub_brk = rospy.Publisher('local_brake',Bool,queue_size=1)
-        self.pub_cmd = rospy.Publisher('throttle',DirectCmd,queue_size=1)
+        self.pub_cmd = rospy.Publisher('actuator_cmd',DirectCmd,queue_size=1)
         
         rospy.loginfo("%s: joystick ready",self.robot_name)
     
