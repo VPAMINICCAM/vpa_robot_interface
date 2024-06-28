@@ -24,12 +24,12 @@ STEERING_CNN = 0
 class PiRacerActutaor:
 
     def __init__(self) -> None:
-        
+        self.robot_name = socket.gethostname()
         self.pwm = PWM()             # call this modified version of PWM
         self.pwm.setPWMFreq(60)      # set oerating PWM frequency
 
         self.sub_cmd = rospy.rospy.Subscriber("actuator_cmd",DirectCmd,self.actuator_cb)
-
+        rospy.loginfo('%s: traction node ready',self.robot_name)
 
     def actuator_cb(self,msg:DirectCmd):
 
