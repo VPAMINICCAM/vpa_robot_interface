@@ -1,0 +1,8 @@
+<launch>
+<!-- assumes ds4drv is running -->
+    <node name="joy_node" pkg="joy" type="joy_node">
+    </node>
+    <include file="$(find vpa_robot_interface)/launch/vpa_traction_start.launch">
+    </include>
+    <node name="joy_trans" pkg="vpa_robot_interface" type="joystick_driver.py" output="screen"/>
+</launch>
