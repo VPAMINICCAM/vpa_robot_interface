@@ -5,7 +5,7 @@ import socket
 from adafruit_drivers.Adafruit_PWM_Servo_Driver import PWM
 
 from vpa_robot_interface.msg import DirectCmd
-
+from std_msgs.msg import Bool
 ''' 
     Reference comments from donkeycar lib
 
@@ -27,13 +27,30 @@ class PiRacerActutaor:
         self.pwm = PWM()             # call this modified version of PWM
         self.pwm.setPWMFreq(60)      # set oerating PWM frequency
         rospy.on_shutdown(self.shut_hook)
+        
+        self.local_brake    = True
+        self.global_brake   = True
+        
         self.sub_cmd = rospy.Subscriber("actuator_cmd",DirectCmd,self.actuator_cb)
+        self.sub_local_brk = rospy.Subscriber("local_brake",Bool,self.local_brk_cb)
         rospy.loginfo('%s: traction node ready',self.robot_name)
 
         self.set_idle()
 
         rospy.loginfo('%s: steering set forward and throttle set idle',self.robot_name)
-
+        
+    def local_brk_cb(self,msg:Bool):
+        
+        if not self.local_brake == msg.data:
+            self.local_brake = msg.data
+            rospy.loginfo('%s: local brake status %s',self.robot_name,self.local_brake)
+        
+    def global_brk_cb(self,msg: Bool):
+        
+        if not self.global_brake == msg.data:
+            self.global_brake = msg.data
+            rospy.loginfo('%s: global brake status %s',self.robot_name,self.global_brake)
+        
     def set_idle(self):
         self.pwm.setPWM(STEERING_CNN,0,int((STEERING_LEFT_PWM+STEERING_RIGHT_PWM)/2))
         self.pwm.setPWM(THROTTLE_CHN,0,THROTTLE_STOPPED_PWM)
@@ -43,6 +60,9 @@ class PiRacerActutaor:
         throttle_ratio = msg.throttle
         steer_ratio    = msg.steering
 
+        if self.local_brake or self.global_brake:
+            self.set_idle()
+            return None
        
         steer_pwm      = int((STEERING_LEFT_PWM+STEERING_RIGHT_PWM)/2)
 
