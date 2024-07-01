@@ -18,3 +18,24 @@ Despite the waveshare provided a pre-built image, the dependencies have been reb
 The enviroment built up will be recorded on VPA interal wiki as a guest user does not need pay any concerns on it.
 
 ## Traction start
+The actuators of the chassis is enabled with the launch file
+
+```
+roslaunch vpa_robot_interface vpa_traction_start.launch
+```
+
+This will enable the steering servo and the traction motors. It will subsrcibes to a 'actuator_cmd' topic, as well as the 'local_brake' and '/global_brake' topic as saftey lock.
+
+A quick test can be performed by launching
+
+```
+roslaunch vpa_robot_interface vpa_joystick_operation.launch
+```
+By pressing the LB and RB buttons at the same time, the local brake will be unlock and a mannul drive is possible when global brake is disabled by a control node.
+
+## Camera
+The camera is launched by
+```
+roslaunch vpa_robot_interface vpa_camera.launch
+```
+The currently default calibration file is in the config folder.
