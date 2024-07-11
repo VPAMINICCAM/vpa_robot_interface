@@ -1,3 +1,0 @@
-<launch>
-    <node pkg="vpa_robot_interface" name="jetracer_traction" type="jet_base.py" output="screen"/>
-</launch>
