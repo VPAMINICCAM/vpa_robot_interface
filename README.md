@@ -53,3 +53,12 @@ roslaunch vpa_robot_interface vpa_traction_start.launch
 ```
 
 ##### Test with joysticks
+The joysticks requring package 
+```
+sudo apt install ros-melodic-joy
+```
+and start the joystick by
+```
+roslaunch vpa_robot_interface vpa_joystick_operation.launch
+```
+Please be aware that the local and global brake is still engaged. By pressing LB and RB at the same time, the local brake will be toggled. The global brake shall be disengaged by the lab controller.
