@@ -1,5 +1,5 @@
+#!/usr/bin/env python
 
-#!/usr/bin/env python3
 import rospy
 import socket
 from sensor_msgs.msg import Joy
@@ -8,7 +8,7 @@ from vpa_robot_interface.msg import JetServo
 
 class JOYDRIVER:
     
-    def __init__(self) -> None:
+    def __init__(self):
         
         self.robot_name = socket.gethostname()
         self.local_unlock_flag = False
@@ -20,7 +20,7 @@ class JOYDRIVER:
         self.throttle_upper = rospy.get_param('~gas_max',0.3)
         rospy.loginfo("%s: joystick ready",self.robot_name)
     
-    def joy_cb(self,data:Joy):
+    def joy_cb(self,data):
         axes = data.axes
         buts = data.buttons
                 
@@ -45,12 +45,12 @@ class JOYDRIVER:
         right_LR    = axes[2]
         
         msg = JetServo()
-        msg.steering = -right_LR
+        msg.steering_servo = -right_LR
         msg.throttle = self.bound_output(left_UD)
         
         self.pub_cmd.publish(msg)
         
-    def bound_output(self,input) -> float:
+    def bound_output(self,input):
         if input > self.throttle_upper:
             return self.throttle_upper
         elif input < -0.5:
