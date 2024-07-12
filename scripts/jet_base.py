@@ -12,8 +12,8 @@ from std_msgs.msg import Bool
 
 '''
 
-STEERING_LEFT_PWM       = 460
-STEERING_RIGHT_PWM      = 290
+STEERING_LEFT_PWM       = 450
+STEERING_RIGHT_PWM      = 350
 
 THROTTLE_FORWARD_PWM    = 500
 THROTTLE_STOPPED_PWM    = 370
@@ -35,7 +35,7 @@ class JetRacerActuator:
         self.local_brake    = True
         self.global_brake   = True
         
-        self.sub_cmd = rospy.Subscriber("actuator_cmd",DirectCmd,self.actuator_cb)
+        self.sub_cmd = rospy.Subscriber("actuator_cmd",JetServo,self.actuator_cb)
         self.sub_local_brk  = rospy.Subscriber("local_brake",Bool,self.local_brk_cb)
         self.sub_global_brk = rospy.Subscriber("/global_brake",Bool,self.global_brk_cb)
         rospy.loginfo('%s: traction node ready',self.robot_name)
@@ -44,13 +44,13 @@ class JetRacerActuator:
 
         rospy.loginfo('%s: steering set forward and throttle set idle',self.robot_name)
 
-    def local_brk_cb(self,msg:Bool):
+    def local_brk_cb(self,msg):
         
         if not self.local_brake == msg.data:
             self.local_brake = msg.data
             rospy.loginfo('%s: local brake status %s',self.robot_name,self.local_brake)
         
-    def global_brk_cb(self,msg: Bool):
+    def global_brk_cb(self,msg):
         
         if not self.global_brake == msg.data:
             self.global_brake = msg.data
@@ -60,7 +60,7 @@ class JetRacerActuator:
         self.pwm.setPWM(STEERING_CNN,0,int((STEERING_LEFT_PWM+STEERING_RIGHT_PWM)/2))
         self.pwm.setPWM(THROTTLE_CHN,0,THROTTLE_STOPPED_PWM)
 
-    def actuator_cb(self,msg:JetServo):
+    def actuator_cb(self,msg):
 
         throttle_ratio = msg.throttle
         steer_ratio    = msg.steering_servo
