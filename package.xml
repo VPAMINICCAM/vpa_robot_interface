@@ -66,6 +66,13 @@
   <exec_depend>sensor_msgs</exec_depend>
   <build_depend>nav_msgs</build_depend>
   <exec_depend>nav_msgs</exec_depend>   
+
+    <!-- Add gscam dependency -->
+  <build_depend>gscam</build_depend>
+  <exec_depend>gscam</exec_depend>
+    <!-- Add joy dependency -->
+  <build_depend>joy</build_depend>
+  <exec_depend>joy</exec_depend>
   <!-- The export tag contains other, unspecified, tags -->
   <export>
     <!-- Other tools can request additional information be placed here -->
