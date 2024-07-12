@@ -25,11 +25,11 @@ STEERING_CNN = 0
 
 class JetRacerActuator:
 
-    def __init__(self) -> None:
+    def __init__(self):
         self.robot_name = socket.gethostname()
         self.pwm = PWM()             # call this modified version of PWM
 
-        self.pwm.setPWMFreq(60)      # set oerating PWM frequency
+        self.pwm.setPWMFreq(60)      # set operating PWM frequency
         rospy.on_shutdown(self.shut_hook)
         
         self.local_brake    = True
