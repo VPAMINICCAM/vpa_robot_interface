@@ -53,8 +53,8 @@ class VPAHATDRIVER:
         enable_command = bytes([0x3D, 0x00, 0x00, 0x00, 0x00])
         for _ in range(6):
             self.ser.write(enable_command)
-            rospy.loginfo(f"Sent enable command: {enable_command.hex()}")
-            rospy.sleep(0.1)  # Small delay between sends
+            # rospy.loginfo(f"Sent enable command: {enable_command.hex()}")
+            rospy.sleep(0.5)  # Small delay between sends
 
         # Wait for response starting with 0x3E
         rospy.loginfo("Waiting for response...")
@@ -87,7 +87,7 @@ class VPAHATDRIVER:
         if len(response) == 5 and response[0] == 0x04:
             # Extract the float value from the response
             self.current_wheelspeed = struct.unpack('<f', response[1:])[0]
-            rospy.loginfo(f"Received current wheel speed: {self.current_wheelspeed} rad/s")
+            # rospy.loginfo(f"Received current wheel speed: {self.current_wheelspeed} rad/s")
             # Calculate current vehicle speed
             self._wheelspeed_to_vehspeed()
         else:
@@ -146,7 +146,7 @@ class VPAHATDRIVER:
         veh_speed_msg = Float32()
         veh_speed_msg.data = self.current_veh_speed
         self.veh_speed_pub.publish(veh_speed_msg)
-        rospy.loginfo(f"Published current vehicle speed: {self.current_veh_speed} m/s")
+        # rospy.loginfo(f"Published current vehicle speed: {self.current_veh_speed} m/s")
 
     def close_serial(self):
         # Close the serial port and stop the timer when done
