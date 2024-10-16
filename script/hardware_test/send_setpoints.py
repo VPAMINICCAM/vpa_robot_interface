@@ -3,7 +3,8 @@ import struct
 
 def send_wheel_setpoints(omega_left: float, omega_right: float, port='/dev/ttyAMA0', baudrate=115200):
     """
-    Pack the identifier and the wheel speeds into a binary message and send it via USART.
+    Pack the identifier and the wheel speeds into a binary message, reverse the bytes,
+    and send it via USART.
     """
     try:
         # Initialize the serial connection
@@ -19,11 +20,14 @@ def send_wheel_setpoints(omega_left: float, omega_right: float, port='/dev/ttyAM
         # Pack the data with identifier 0x03 and wheel speeds as 4-byte floats
         message = struct.pack('<Bff', 0x03, omega_left, omega_right)
 
-        # Send the packed message over the serial connection
-        ser.write(message)
+        # Reverse the byte order of the entire message
+        reversed_message = message[::-1]
 
-        # Print the packed message in hexadecimal for debugging
-        print("Sent message in hex:", message.hex())
+        # Send the reversed message over the serial connection
+        ser.write(reversed_message)
+
+        # Print the reversed packed message in hexadecimal for debugging
+        print("Sent reversed message in hex:", reversed_message.hex())
 
         # Close the serial connection
         ser.close()
