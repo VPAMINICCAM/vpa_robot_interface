@@ -1,10 +1,14 @@
 import serial
 import struct
 
+def reverse_bytes(data: bytes) -> bytes:
+    """Reverse the byte order of the packed float."""
+    return data[::-1]
+
 def send_wheel_setpoints(omega_left: float, omega_right: float, port='/dev/ttyAMA0', baudrate=115200):
     """
-    Pack the identifier and the wheel speeds into a binary message, reverse the bytes,
-    and send it via USART.
+    Pack the identifier and the wheel speeds into a binary message, reverse the byte order
+    of the float values, and send it via USART.
     """
     try:
         # Initialize the serial connection
@@ -17,17 +21,25 @@ def send_wheel_setpoints(omega_left: float, omega_right: float, port='/dev/ttyAM
             timeout=1
         )
 
-        # Pack the data with identifier 0x03 and wheel speeds as 4-byte floats
-        message = struct.pack('<Bff', 0x03, omega_left, omega_right)
+        # Pack the identifier
+        identifier = struct.pack('<B', 0x03)
 
-        # Reverse the byte order of the entire message
-        reversed_message = message[::-1]
+        # Pack the float values separately and reverse their byte order
+        omega_left_packed = struct.pack('<f', omega_left)  # Little-endian float
+        omega_right_packed = struct.pack('<f', omega_right)  # Little-endian float
 
-        # Send the reversed message over the serial connection
-        ser.write(reversed_message)
+        # Reverse the bytes of each float
+        omega_left_reversed = reverse_bytes(omega_left_packed)
+        omega_right_reversed = reverse_bytes(omega_right_packed)
+
+        # Combine the identifier and the reversed float bytes
+        message = identifier + omega_left_reversed + omega_right_reversed
+
+        # Send the message via USART
+        ser.write(message)
 
         # Print the reversed packed message in hexadecimal for debugging
-        print("Sent reversed message in hex:", reversed_message.hex())
+        print("Sent message in hex:", message.hex())
 
         # Close the serial connection
         ser.close()
