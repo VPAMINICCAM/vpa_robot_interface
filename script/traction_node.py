@@ -33,7 +33,7 @@ class VPAHAT:
         
         # Chassis parameters
         self.wheel_diameter = rospy.get_param('~wheel_diameter', 0.065)  # Example: 65 mm
-        self.wheelbase = rospy.get_param('~wheelbase', 0.125)  # Example: 125 mm
+        self.wheelbase = rospy.get_param('~wheelbase', 0.105)  # Example: 105 mm
         self.debug_mode = rospy.get_param('~debug_mode', False)  # Debug mode flag
 
         self.chassis = CHASSIS(self.wheel_diameter, self.wheelbase)
