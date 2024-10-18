@@ -6,7 +6,7 @@ import serial
 import struct  # For packing and unpacking data
 import RPi.GPIO as GPIO  # Importing GPIO for controlling pins
 from geometry_msgs.msg import Twist  # Importing Twist message type for cmd_vel
-from std_msgs.msg import Float32MultiArray  # For publishing setpoints and real wheel speeds
+from std_msgs.msg import Float32MultiArray, Bool  # For publishing setpoints and real wheel speeds
 
 class CHASSIS:
     def __init__(self, wheel_diameter: float, wheelbase: float):
@@ -42,6 +42,11 @@ class VPAHAT:
         self.left_speed = 0
         self.right_speed = 0
 
+        self.global_stop_flag   = True
+        self.local_stop_flag    = True
+        self.sub_e_stop         = rospy.Subscriber("/global_brake", Bool, self.estop_cb, queue_size=1)
+        self.sub_local_e_stop   = rospy.Subscriber("local_brake", Bool, self.estop_local_cb, queue_size=1)
+
         self.chassis = CHASSIS(self.wheel_diameter, self.wheelbase)
         self.chassis.trim = self._read_trim_from_file()
 
@@ -52,7 +57,13 @@ class VPAHAT:
 
         # Subscribe to the cmd_vel topic
         self.sub_cmd_vel = rospy.Subscriber('cmd_vel', Twist, self.cmd_vel_callback)
-        
+    
+    def estop_cb(self,msg:Bool) -> None:
+        self.global_stop_flag = msg.data
+
+    def estop_local_cb(self,msg:Bool) -> None:
+        self.local_stop_flag = msg.data
+
     def _enable_STBY_pin(self) -> None:
         GPIO.setmode(GPIO.BCM)
         self.enable_pin = 23  # GPIO23
@@ -101,7 +112,10 @@ class VPAHAT:
             rospy.loginfo(f"Published setpoints in debug mode: {omega_left:.2f} rps, {omega_right:.2f} rps")
 
         # Send the setpoints over USART
-        self.send_wheel_setpoints(omega_left, omega_right)
+        if self.local_stop_flag or self.global_stop_flag:
+            self.send_wheel_setpoints(0, 0)
+        else:
+            self.send_wheel_setpoints(omega_left, omega_right)
 
     def _read_trim_from_file(self):
         """Read the trim value from a file in the package."""
@@ -124,6 +138,8 @@ class VPAHAT:
         - 4 bytes for left wheel speed (A) in reversed float
         - 4 bytes for right wheel speed (B) in reversed float
         """
+
+
         try:
             identifier = struct.pack('<B', 0x03)
             omega_left_packed = struct.pack('<f', omega_left)
