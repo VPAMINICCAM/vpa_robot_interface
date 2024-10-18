@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import rospy
 import serial
 import struct  # For packing and unpacking data
@@ -13,13 +14,15 @@ class CHASSIS:
         self.wheel_diameter = wheel_diameter  # Diameter of the wheels
         self.wheelbase = wheelbase  # Distance between the two wheels
 
+        self.trim = 0
+
     def calculate_wheel_speeds(self, linear_x: float, angular_z: float):
         """Calculate left (A) and right (B) wheel speeds in radians per second (rps) based on the linear and angular velocity from cmd_vel."""
-        r_left = linear_x - (self.wheelbase * angular_z) / 2
-        r_right = linear_x + (self.wheelbase * angular_z) / 2
+        r_left = linear_x - (self.wheelbase * angular_z) 
+        r_right = linear_x + (self.wheelbase * angular_z)
 
-        omega_left = (2 * r_left) / self.wheel_diameter
-        omega_right = (2 * r_right) / self.wheel_diameter
+        omega_left = ((r_left) / (self.wheel_diameter * 3.14)) * (1 - self.trim)
+        omega_right = (r_right) / (self.wheel_diameter * 3.14) * (1 + self.trim)
 
         return omega_left, omega_right
 
@@ -36,7 +39,11 @@ class VPAHAT:
         self.wheelbase = rospy.get_param('~wheelbase', 0.105)  # Example: 105 mm
         self.debug_mode = rospy.get_param('~debug_mode', False)  # Debug mode flag
 
+        self.left_speed = 0
+        self.right_speed = 0
+
         self.chassis = CHASSIS(self.wheel_diameter, self.wheelbase)
+        self.chassis.trim = self._read_trim_from_file()
 
         # Publishers
         self.pub_real_wheel_speeds = rospy.Publisher('real_wheel_speeds', Float32MultiArray, queue_size=10)
@@ -84,11 +91,10 @@ class VPAHAT:
         # Calculate left and right wheel speeds in radians per second
         omega_left, omega_right = self.chassis.calculate_wheel_speeds(linear_velocity, angular_velocity)
 
-        # Log the calculated wheel speeds
-        rospy.loginfo(f"Left wheel (A) speed: {omega_left:.2f} rps, Right wheel (B) speed: {omega_right:.2f} rps")
-
         # Publish the setpoints if debug mode is enabled
         if self.debug_mode:
+            # Log the calculated wheel speeds
+            rospy.loginfo(f"Left wheel (A) speed: {omega_left:.2f} rps, Right wheel (B) speed: {omega_right:.2f} rps")
             setpoints_msg = Float32MultiArray()
             setpoints_msg.data = [omega_left, omega_right]
             self.pub_setpoints_debug.publish(setpoints_msg)
@@ -96,6 +102,20 @@ class VPAHAT:
 
         # Send the setpoints over USART
         self.send_wheel_setpoints(omega_left, omega_right)
+
+    def _read_trim_from_file(self):
+        """Read the trim value from a file in the package."""
+        package_path = os.path.dirname(os.path.realpath(__file__))  # Get current package directory
+        trim_file_path = os.path.join(package_path, 'config', 'trim.txt')
+
+        try:
+            with open(trim_file_path, 'r') as file:
+                trim_value = float(file.readline().strip())
+                rospy.loginfo(f"Loaded trim value: {trim_value}")
+                return trim_value
+        except (FileNotFoundError, ValueError) as e:
+            rospy.logwarn(f"Failed to read trim value from file: {e}, using default trim = 0.0")
+            return 0.0  # Default trim value
 
     def send_wheel_setpoints(self, omega_left: float, omega_right: float) -> None:
         """
@@ -115,7 +135,7 @@ class VPAHAT:
             message = identifier + omega_left_reversed + omega_right_reversed
 
             self.serial_conn.write(message)
-            rospy.loginfo(f"Sent wheel setpoints in hex: {message.hex()}")
+            # rospy.loginfo(f"Sent wheel setpoints in hex: {message.hex()}")
         except Exception as e:
             rospy.logerr(f"Error sending wheel setpoints: {e}")
 
@@ -131,10 +151,22 @@ class VPAHAT:
             if len(data) == 9:
                 identifier = data[0]
                 if identifier == 0x04:
-                    left_speed = struct.unpack('<f', data[1:5])[0]
-                    right_speed = struct.unpack('<f', data[5:9])[0]
+                    left_speed_raw = struct.unpack('<f', data[1:5])[0]
+                    right_speed_raw = struct.unpack('<f', data[5:9])[0]
+                    
+                    if left_speed_raw > -100:
+                        left_speed = left_speed_raw
+                        self.left_speed = left_speed
+                    else:
+                        left_speed = self.left_speed
+                    
+                    if right_speed_raw > -100:
+                        right_speed = right_speed_raw
+                        self.right_speed = right_speed
+                    else:
+                        right_speed = self.right_speed
 
-                    rospy.loginfo(f"Received real wheel speeds: Left = {left_speed:.2f} rps, Right = {right_speed:.2f} rps")
+                    # rospy.loginfo(f"Received real wheel speeds: Left = {left_speed:.2f} rps, Right = {right_speed:.2f} rps")
 
                     real_speeds_msg = Float32MultiArray()
                     real_speeds_msg.data = [left_speed, right_speed]
