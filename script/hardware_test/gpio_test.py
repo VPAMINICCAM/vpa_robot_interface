@@ -26,3 +26,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # GPIO.output(23, GPIO.HIGH)
