@@ -123,10 +123,13 @@ class VPAHAT:
         trim_file_path = os.path.join(package_path, 'config', 'trim.txt')
 
         try:
-            with open(trim_file_path, 'r') as file:
-                trim_value = float(file.readline().strip())
-                rospy.loginfo(f"Loaded trim value: {trim_value}")
-                return trim_value
+            if os.path.exists(trim_file_path):
+                with open(trim_file_path, 'r') as file:
+                    trim_value = float(file.readline().strip())
+                    rospy.loginfo(f"Loaded trim value: {trim_value}")
+                    return trim_value
+            else:
+                return 0.0
         except (FileNotFoundError, ValueError) as e:
             rospy.logwarn(f"Failed to read trim value from file: {e}, using default trim = 0.0")
             return 0.0  # Default trim value
