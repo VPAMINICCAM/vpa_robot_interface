@@ -1,5 +1,13 @@
 import serial
 import struct
+import RPi.GPIO as GPIO
+import time
+
+# Set the GPIO mode to BCM (Broadcom chip pin numbering)
+GPIO.setmode(GPIO.BCM)
+
+# Set GPIO23 as an output pin
+GPIO.setup(23, GPIO.OUT)
 
 def reverse_bytes(data: bytes) -> bytes:
     """Reverse the byte order of the packed float."""
@@ -49,4 +57,8 @@ def send_wheel_setpoints(omega_left: float, omega_right: float, port='/dev/ttyAM
 
 if __name__ == "__main__":
     # Test with wheel speeds of 1.0 rps for both wheels
+    GPIO.output(23, GPIO.HIGH)
+    print("GPIO23 is set to HIGH")
     send_wheel_setpoints(1.0, 1.0)
+    time.sleep(10)
+    GPIO.cleanup()
