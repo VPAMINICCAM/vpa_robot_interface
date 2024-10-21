@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import socket
 import rospy
 import serial
 import struct  # For packing and unpacking data
@@ -37,7 +38,7 @@ class VPAHAT:
         
         self._enable_STBY_pin()
         self._enable_USART()
-        
+        self.veh_name       = socket.gethostname()
         # Chassis parameters
         self.wheel_diameter = rospy.get_param('~wheel_diameter', 0.065)  # Example: 65 mm
         self.wheelbase = rospy.get_param('~wheelbase', 0.105)  # Example: 105 mm
@@ -47,7 +48,10 @@ class VPAHAT:
         self.right_speed = 0
 
         self.global_stop_flag   = True
+        rospy.loginfo("%s: global brake activated",self.veh_name)
         self.local_stop_flag    = True
+        rospy.loginfo("%s: local brake activated",self.veh_name)
+
         self.sub_e_stop         = rospy.Subscriber("/global_brake", Bool, self.estop_cb, queue_size=1)
         self.sub_local_e_stop   = rospy.Subscriber("local_brake", Bool, self.estop_local_cb, queue_size=1)
 
@@ -64,9 +68,12 @@ class VPAHAT:
     
     def estop_cb(self,msg:Bool) -> None:
         self.global_stop_flag = msg.data
+        rospy.loginfo_once('%s: global brake: %s',self.veh_name,str(msg.data))
+
 
     def estop_local_cb(self,msg:Bool) -> None:
         self.local_stop_flag = msg.data
+        rospy.loginfo_once('%s: local brake: %s',self.veh_name,str(msg.data))
 
     def _enable_STBY_pin(self) -> None:
         GPIO.setmode(GPIO.BCM)
