@@ -14,10 +14,7 @@ Currently the following sensors are installed
 
 The enviroment built up will be recorded on VPA internal wiki as a guest user does not need pay any concerns on it.
 
-# vpa_piracer_hat
-A self-designed raspberry hat is placed in between raspberry Pi and the PCA9685 chip. An encoder is installed on the motor so that a close-loop speed control is the desired target of such implementations
+# vpa_sensor_extensions
+A self-designed raspberry hat is placed in between raspberry Pi and motors.
 
-- [ ] Link the open-source materials of the hat
-
-There is a STM32F103RCT6 MCU on it, and for Piracer, it enabled a encoder channel and USART communication, so that it serves as a lower level control for wheel speed control.
-
+The (currently private) [link](https://github.com/VPAMINICCAM/vpa_sensor_extensions) to the PCBA and its source code
