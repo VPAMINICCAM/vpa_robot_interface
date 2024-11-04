@@ -149,8 +149,8 @@ class BaseControl:
         self.movebase_firmware_version = [0,0,0]
         self.movebase_hardware_version = [0,0,0]
 
-        # self.movebase_type = ["NanoCar","NanoRobot","4WD_OMNI","4WD","RC_ACKERMAN"]
-        # self.motor_type = ["25GA370","37GB520","TT48","RS365","RS540"]
+        self.movebase_type = ["NanoCar","NanoRobot","4WD_OMNI","4WD","RC_ACKERMAN"]
+        self.motor_type = ["25GA370","37GB520","TT48","RS365","RS540"]
         
         self.last_cmd_vel_time          = rospy.Time.now()
         self.last_ackermann_cmd_time    = rospy.Time.now()
@@ -194,39 +194,39 @@ class BaseControl:
         time.sleep(0.01)
         self.getInfo()
 
-        def estop_cb(self,msg:Bool):
-            self.estop = msg.data
-            if self.estop:
-                rospy.loginfo("Global Brake Activated")
-            else:
-                rospy.loginfo("Global Brake Released")
+    def estop_cb(self,msg:Bool):
+        self.estop = msg.data
+        if self.estop:
+            rospy.loginfo("Global Brake Activated")
+        else:
+            rospy.loginfo("Global Brake Released")
         
-        def estop_local_cb(self,msg:Bool):
-            self.local_estop = msg.data
-            if self.local_estop:
-                rospy.loginfo("Local Brake Activated")
-            else:
-                rospy.loginfo("Local Brake Released")
-        
-            #CRC-8 Calculate
+    def estop_local_cb(self,msg:Bool):
+        self.local_estop = msg.data
+        if self.local_estop:
+            rospy.loginfo("Local Brake Activated")
+        else:
+            rospy.loginfo("Local Brake Released")
+    
+        #CRC-8 Calculate
 
-        def crc_1byte(self,data):
-            crc_1byte = 0
-            for i in range(0,8):
-                if((crc_1byte^data)&0x01):
-                    crc_1byte^=0x18
-                    crc_1byte>>=1
-                    crc_1byte|=0x80
-                else:
-                    crc_1byte>>=1
-                data>>=1
-            return crc_1byte
-        
-        def crc_byte(self,data,length):
-            ret = 0
-            for i in range(length):
-                ret = self.crc_1byte(ret^data[i])
-            return ret
+    def crc_1byte(self,data):
+        crc_1byte = 0
+        for i in range(0,8):
+            if((crc_1byte^data)&0x01):
+                crc_1byte^=0x18
+                crc_1byte>>=1
+                crc_1byte|=0x80
+            else:
+                crc_1byte>>=1
+            data>>=1
+        return crc_1byte
+    
+    def crc_byte(self,data,length):
+        ret = 0
+        for i in range(length):
+            ret = self.crc_1byte(ret^data[i])
+        return ret
         
             #Subscribe vel_cmd call this to send vel cmd to move base
     def cmdCB(self,data):
@@ -234,7 +234,7 @@ class BaseControl:
         self.trans_y = data.linear.y
         self.rotat_z = data.angular.z
         self.last_cmd_vel_time = rospy.Time.now()
-        if self.estop:
+        if self.estop or self.local_estop:
             self.trans_x = 0
             self.trans_y = 0
             self.rotat_z = 0
