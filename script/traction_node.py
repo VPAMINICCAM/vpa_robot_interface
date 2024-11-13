@@ -8,14 +8,15 @@ from vpa_robot_interface.msg import DirectCmd
 from std_msgs.msg import Bool
 ''' 
     Reference comments from donkeycar lib
-
+    https://docs.donkeycar.com/parts/actuators/#generating-pwm-pulses-with-a-pca9685-servo-controller
+    
 '''
 STEERING_LEFT_PWM       = 460
 STEERING_RIGHT_PWM      = 290
 
-THROTTLE_FORWARD_PWM    = 500
-THROTTLE_STOPPED_PWM    = 370
-THROTTLE_REVERSE_PWM    = 220
+THROTTLE_FORWARD_PWM    = 492
+THROTTLE_STOPPED_PWM    = 367
+THROTTLE_REVERSE_PWM    = 246
 
 THROTTLE_CHN = 1
 STEERING_CNN = 0
