@@ -11,8 +11,9 @@ from std_msgs.msg import Bool
     https://docs.donkeycar.com/parts/actuators/#generating-pwm-pulses-with-a-pca9685-servo-controller
     
 '''
-STEERING_LEFT_PWM       = 460
-STEERING_RIGHT_PWM      = 290
+STEER_RANGE_RATIO       = 0.55
+STEERING_LEFT_PWM       = 492
+STEERING_RIGHT_PWM      = 246
 
 THROTTLE_FORWARD_PWM    = 492
 THROTTLE_STOPPED_PWM    = 367
@@ -61,7 +62,11 @@ class PiRacerActutaor:
 
         throttle_ratio = msg.throttle
         steer_ratio    = msg.steering
-
+        if steer_ratio > STEER_RANGE_RATIO:
+            steer_ratio = STEER_RANGE_RATIO
+        elif steer_ratio < - STEER_RANGE_RATIO:    
+            steer_ratio = -STEER_RANGE_RATIO
+            
         if self.local_brake or self.global_brake:
             self.set_idle()
             return None
