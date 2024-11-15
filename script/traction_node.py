@@ -49,6 +49,9 @@ class VPAHAT:
         if self.debug_mode:
             self.pub_setpoints_debug = rospy.Publisher('setpoints_debug', Float, queue_size=10)
 
+        import threading
+        threading.Thread(target=self.read_usart_messages, daemon=True).start()
+
     def _enable_STBY_pin(self) -> None:
         GPIO.setmode(GPIO.BCM)
         self.enable_pin = 23  # GPIO23
@@ -96,38 +99,117 @@ class VPAHAT:
         self.send_usart_message(0x07, omega)
 
 
-def send_usart_message(self, cmd_id: int, *data: float) -> None:
-    """
-    Send a message over USART to the lower controller with dynamic payload length.
+    def send_usart_message(self, cmd_id: int, *data: float) -> None:
+        """
+        Send a message over USART to the lower controller with dynamic payload length.
 
-    Args:
-        cmd_id (int): Command identifier for the message.
-        *data (float): Variable number of float values to send as the payload.
-    """
+        Args:
+            cmd_id (int): Command identifier for the message.
+            *data (float): Variable number of float values to send as the payload.
+        """
+        try:
+            # Protocol format: [START_MARKER][LENGTH][CMD_ID][DATA...][END_MARKER]
+            start_marker = 0x02
+            end_marker = 0x03
+
+            # Convert all float data to little-endian format
+            payload = bytearray()
+            for value in data:
+                payload.extend(struct.pack('<f', value))  # Pack each float
+
+            # Calculate length dynamically (1 for CMD_ID + size of payload)
+            length = 1 + len(payload)
+
+            # Build the message
+            message = bytearray([start_marker, length, cmd_id])
+            message.extend(payload)
+            message.append(end_marker)
+
+            # Send the message over USART
+            self.serial_conn.write(message)
+
+            if self.debug_mode:
+                rospy.loginfo(f"{self.veh_name}: Sent cmd_id {cmd_id}, data: {data} (Raw: {message.hex()})")
+
+        except serial.SerialException as e:
+            rospy.logerr(f"{self.veh_name}: Failed to send message over serial: {e}")
+
+    def read_usart_messages(self):
+        """
+        Continuously read and process messages from the STM32 over USART.
+        """
+        # rospy.loginfo("Starting USART read loop...")
+        try:
+            while not rospy.is_shutdown():
+                # Read a full message
+                message = self._read_message()
+                if message:
+                    self._process_usart_message(message)
+        except rospy.ROSInterruptException:
+            rospy.loginfo("Shutting down USART read loop.")
+        except Exception as e:
+            rospy.logerr(f"Error in USART read loop: {e}")
+
+    def _read_message(self):
+        """
+        Read a full message from USART based on the protocol.
+        Returns the raw message as a bytearray or None if no valid message is received.
+        """
+        try:
+            # Wait for the start marker
+            byte = self.serial_conn.read(1)
+            if not byte or byte[0] != 0x02:  # Start marker
+                return None
+
+            # Read the length byte
+            length_byte = self.serial_conn.read(1)
+            if not length_byte:
+                return None
+            length = length_byte[0]
+
+            # Read the remaining bytes (length + end marker)
+            message = self.serial_conn.read(length + 1)
+            if len(message) != length + 1 or message[-1] != 0x03:  # End marker
+                return None
+
+            # Return the full message
+            return bytearray([0x02]) + bytearray([length]) + message
+        except Exception as e:
+            rospy.logerr(f"Error reading USART message: {e}")
+            return None
+
+    def _process_usart_message(self, message):
+        """
+        Process a received USART message.
+        """
+        try:
+            cmd_id = message[2]
+
+            # Check if the message is a speed message (cmd_id = 0x04)
+            if cmd_id == 0x02:
+                speed = struct.unpack('<f', message[3:7])[0]
+
+                # Publish the speeds
+                speeds_msg = Float()
+                speeds_msg.data = speed
+                self.pub_real_wheel_speeds.publish(speeds_msg)
+
+                # Debug logging
+                if self.debug_mode:
+                    rospy.loginfo(f"{self.veh_name}: Received Speeds -  {speed:.2f}")
+            else:
+                rospy.logwarn(f"{self.veh_name}: Received unknown cmd_id: {cmd_id}")
+        except Exception as e:
+            rospy.logerr(f"Error processing USART message: {e}")
+
+if __name__ == "__main__":
     try:
-        # Protocol format: [START_MARKER][LENGTH][CMD_ID][DATA...][END_MARKER]
-        start_marker = 0x02
-        end_marker = 0x03
+        # Create an instance of the VPAHAT class
+        vpa_hat = VPAHAT()
 
-        # Convert all float data to little-endian format
-        payload = bytearray()
-        for value in data:
-            payload.extend(struct.pack('<f', value))  # Pack each float
-
-        # Calculate length dynamically (1 for CMD_ID + size of payload)
-        length = 1 + len(payload)
-
-        # Build the message
-        message = bytearray([start_marker, length, cmd_id])
-        message.extend(payload)
-        message.append(end_marker)
-
-        # Send the message over USART
-        self.serial_conn.write(message)
-
-        if self.debug_mode:
-            rospy.loginfo(f"{self.veh_name}: Sent cmd_id {cmd_id}, data: {data} (Raw: {message.hex()})")
-
-    except serial.SerialException as e:
-        rospy.logerr(f"{self.veh_name}: Failed to send message over serial: {e}")
-
+        # Keep the node running
+        rospy.spin()
+    except rospy.ROSInterruptException:
+        pass
+    except Exception as e:
+        rospy.logerr(f"Unexpected error in the traction node: {e}")
