@@ -4,6 +4,11 @@ The package of VPA Car interface aims to contains all sensors, actuators drivers
 
 This package is again branched by the type of robot.
 
+**About this branch**
+Piracer has no speed reading, this version consists of a extensions board that reading encoders while introducing a speed controller in the middle layer MCU.
+
+The Pi will communicate with the MCU with speed setpoints and speed.
+
 # PiRacer
 This branch is built for [PiRacer](https://www.waveshare.com/product/robotics/mobile-robots/raspberry-pi-robots/piracer-pro-ai-kit.htm?sku=18492).
 It is a raspberry pi 4b mounted on a latrax rally chassis and power train.
