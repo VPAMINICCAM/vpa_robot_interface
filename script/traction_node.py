@@ -3,12 +3,14 @@
 import os
 import socket
 import rospy
+import time
 import serial
 import struct  # For packing and unpacking data
 import RPi.GPIO as GPIO  # Importing GPIO for controlling pins
 from geometry_msgs.msg import Twist  # Importing Twist message type for cmd_vel
 from std_msgs.msg import Float, Bool
 
+from vpa_robot_interface.msg import DirectCmd  # Import the custom message
 
 class CHASSIS:
     def __init__(self, wheel_diameter: float):
@@ -30,10 +32,17 @@ class VPAHAT:
         rospy.init_node('vpa_hat')
         self._enable_STBY_pin()
 
-        self.veh_name       = socket.gethostname()
+        self._enable_USART()
+
+        time.sleep(0.5)
+
+        self.enable_actuator()
+
+        self.veh_name               = socket.gethostname()
         # Chassis parameters
-        self.wheel_diameter = rospy.get_param('~wheel_diameter', 0.045)  # Example: 45 mm
-        self.debug_mode = rospy.get_param('~debug_mode', False)  # Debug mode flag
+        self.wheel_diameter         = rospy.get_param('~wheel_diameter', 0.045)  # Example: 45 mm
+        self.debug_mode             = rospy.get_param('~debug_mode', False)  # Debug mode flag
+        self.direct_throttle        = rospy.get_param('~direct_throttle', False)  # Direct throttle mode flag
         self.speed = 0
         self.chassis = CHASSIS(self.wheel_diameter)
         self.global_stop_flag   = True
@@ -48,6 +57,12 @@ class VPAHAT:
         self.pub_real_wheel_speeds = rospy.Publisher('real_wheel_speeds', Float, queue_size=10)
         if self.debug_mode:
             self.pub_setpoints_debug = rospy.Publisher('setpoints_debug', Float, queue_size=10)
+
+        if self.direct_throttle:
+            # DirectCmd subscriber (for direct throttle)
+            self.sub_direct_cmd = rospy.Subscriber("direct_cmd", DirectCmd, self.direct_cmd_callback, queue_size=1)
+        else:
+            self.sub_cmd_vel    = rospy.Subscriber("cmd_vel", Twist, self.cmd_vel_callback, queue_size=1)
 
         import threading
         threading.Thread(target=self.read_usart_messages, daemon=True).start()
@@ -77,6 +92,20 @@ class VPAHAT:
             rospy.logerr(f"Failed to open serial connection: {e}")
             rospy.signal_shutdown("Serial initialization failed")
 
+    def enable_actuator(self):
+        """
+        Sends a command to enable the actuator via USART (cmd_id = 0x01).
+        """
+        try:
+            # Use send_usart_message with cmd_id = 0x01 and no additional data
+            self.send_usart_message(0x01)
+
+            if self.debug_mode:
+                rospy.loginfo(f"{self.veh_name}: Actuator enable command sent (cmd_id=0x01)")
+        except serial.SerialException as e:
+            rospy.logerr(f"{self.veh_name}: Failed to send actuator enable command: {e}")
+
+
     def estop_cb(self,msg:Bool) -> None:
         self.global_stop_flag = msg.data
         rospy.loginfo_once('%s: global brake: %s',self.veh_name,str(msg.data))
@@ -89,14 +118,18 @@ class VPAHAT:
     def cmd_vel_callback(self, msg: Twist) -> None:
 
         """Callback function for /cmd_vel topic. This is called whenever a new cmd_vel message is received."""
+
         linear_velocity = msg.linear.x  # Forward/backward velocity
 
-        omega = self.chassis.calculate_wheel_speeds(linear_velocity)
+        if self.global_stop_flag or self.local_stop_flag:
+            self.send_usart_message(0x07, 0)
+        else:
+            omega = self.chassis.calculate_wheel_speeds(linear_velocity)
 
-        # this so far is only about 
+            # this so far is only about 
 
-        # Send omega to the lower controller via USART
-        self.send_usart_message(0x07, omega)
+            # Send omega to the lower controller via USART
+            self.send_usart_message(0x07, omega)
 
 
     def send_usart_message(self, cmd_id: int, *data: float) -> None:
@@ -133,6 +166,26 @@ class VPAHAT:
 
         except serial.SerialException as e:
             rospy.logerr(f"{self.veh_name}: Failed to send message over serial: {e}")
+
+    def direct_cmd_callback(self, msg: DirectCmd) -> None:
+        """
+        Callback for /direct_cmd topic. Handles throttle commands in direct throttle mode.
+        """
+        if self.global_stop_flag or self.local_stop_flag:
+            self.send_usart_message(0x09, 0)
+            self.send_usart_message(0x03, 0)
+            
+        else:
+            # Send throttle value directly to the lower controller
+            throttle = msg.throttle
+            self.send_usart_message(0x09, throttle)
+            steering = msg.steering
+            # Send steering value via USART with cmd_id = 0x03
+            self.send_usart_message(0x03, steering)
+
+            if self.debug_mode:
+                rospy.loginfo(f"{self.veh_name}: Sent throttle: {throttle:.2f} in direct throttle mode")
+
 
     def read_usart_messages(self):
         """
