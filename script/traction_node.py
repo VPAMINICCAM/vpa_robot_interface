@@ -3,258 +3,221 @@
 import os
 import socket
 import rospy
-import time
-import serial
-import struct  # For packing and unpacking data
+
+import struct
 import RPi.GPIO as GPIO  # Importing GPIO for controlling pins
 from geometry_msgs.msg import Twist  # Importing Twist message type for cmd_vel
-from std_msgs.msg import Float, Bool
-
+from std_msgs.msg import Float32, Bool
 from vpa_robot_interface.msg import DirectCmd  # Import the custom message
 
-class CHASSIS:
-    def __init__(self, wheel_diameter: float):
-        """Initialize the chassis with wheel diameter and wheelbase."""
-        self.wheel_diameter = wheel_diameter  # Diameter of the wheels
+from traction.chassis import CHASSIS
+from traction.serial_com import SerialComm
 
-
-    def calculate_wheel_speeds(self, linear_x: float):
-        """Calculate  wheel speeds in revolution per second (rps) based on the linear and angular velocity from cmd_vel."""
-        if not linear_x == 0: 
-            omega = linear_x / (2*3.14*self.wheel_diameter)
-        else:
-            omega = 0
-        return omega
+from dynamic_reconfigure.server import Server
+from vpa_robot_interface.cfg import SpdCtrlConfig
 
 class VPAHAT:
 
     def __init__(self):
         rospy.init_node('vpa_hat')
-        self._enable_STBY_pin()
+        
+        self.robot_name         = socket.gethostname()
 
-        self._enable_USART()
+        wheel_diameter          = rospy.get_param('~wheel_diameter', 0.045)
+        self.chassis            = CHASSIS(wheel_diameter)
 
-        time.sleep(0.5)
+        self.debug_mode         = rospy.get_param('~debug_mode', False)
 
-        self.enable_actuator()
+        self.direct_throttle    = rospy.get_param('~direct_throttle', False)
 
-        self.veh_name               = socket.gethostname()
-        # Chassis parameters
-        self.wheel_diameter         = rospy.get_param('~wheel_diameter', 0.045)  # Example: 45 mm
-        self.debug_mode             = rospy.get_param('~debug_mode', False)  # Debug mode flag
-        self.direct_throttle        = rospy.get_param('~direct_throttle', False)  # Direct throttle mode flag
-        self.speed = 0
-        self.chassis = CHASSIS(self.wheel_diameter)
         self.global_stop_flag   = True
-        rospy.loginfo("%s: global brake activated",self.veh_name)
         self.local_stop_flag    = True
-        rospy.loginfo("%s: local brake activated",self.veh_name)
 
-        self.sub_e_stop         = rospy.Subscriber("/global_brake", Bool, self.estop_cb, queue_size=1)
-        self.sub_local_e_stop   = rospy.Subscriber("local_brake", Bool, self.estop_local_cb, queue_size=1)
+        # Initialize the serial communication
+        self.serial_comm = SerialComm('/dev/ttyAMA0', 115200, self.debug_mode)
+        self.serial_comm.set_read_callback(self.process_usart_message)
+        
+        rospy.on_shutdown(self.shutdown_hook)
+
+        # reset MCU
+        self._send_reset_message()
+        rospy.sleep(2)
+
+        # Enable GPIO 23 for communication
+        self._enable_communication_gpio()
 
         # Publishers
-        self.pub_real_wheel_speeds = rospy.Publisher('real_wheel_speeds', Float, queue_size=10)
-        if self.debug_mode:
-            self.pub_setpoints_debug = rospy.Publisher('setpoints_debug', Float, queue_size=10)
+        self.pub_real_wheel_speeds = rospy.Publisher('wheel_speed', Float32, queue_size=10)
+
+        rospy.Subscriber("/global_brake", Bool, self.estop_cb)
+        rospy.Subscriber("local_brake", Bool, self.estop_local_cb)
 
         if self.direct_throttle:
-            # DirectCmd subscriber (for direct throttle)
-            self.sub_direct_cmd = rospy.Subscriber("direct_cmd", DirectCmd, self.direct_cmd_callback, queue_size=1)
+            rospy.loginfo('%s: direct cmd input mode',self.robot_name)
+            rospy.Subscriber("direct_cmd", DirectCmd, self.direct_cmd_callback)
         else:
-            self.sub_cmd_vel    = rospy.Subscriber("cmd_vel", Twist, self.cmd_vel_callback, queue_size=1)
+            rospy.loginfo('%s: twist cmd input mode',self.robot_name)
+            rospy.Subscriber("cmd_vel", Twist, self.cmd_vel_callback)
 
-        import threading
-        threading.Thread(target=self.read_usart_messages, daemon=True).start()
+        self.dynamic_params = Server(SpdCtrlConfig, self.dynamic_reconf_callback)
 
-    def _enable_STBY_pin(self) -> None:
-        GPIO.setmode(GPIO.BCM)
-        self.enable_pin = 23  # GPIO23
-        GPIO.setup(self.enable_pin, GPIO.OUT)
-        GPIO.output(self.enable_pin, GPIO.HIGH)  # Set GPIO23 high to enable hardware
-
+        rospy.loginfo("%s,actuator node initialized successfully.",self.robot_name)
     
-    def _enable_USART(self) -> None:
-        self.port = rospy.get_param('~port', '/dev/ttyAMA0')  # Default serial port
-        self.baudrate = rospy.get_param('~baudrate', 115200)  # Default baud rate
-
-        try:
-            self.serial_conn = serial.Serial(
-                port=self.port,               
-                baudrate=self.baudrate,
-                bytesize=serial.EIGHTBITS,  
-                parity=serial.PARITY_NONE,   
-                stopbits=serial.STOPBITS_ONE,
-                timeout=1
-            )
-            rospy.loginfo(f"Initialized serial connection on {self.port} with baud rate {self.baudrate}")
-        except serial.SerialException as e:
-            rospy.logerr(f"Failed to open serial connection: {e}")
-            rospy.signal_shutdown("Serial initialization failed")
-
-    def enable_actuator(self):
+    def _send_reset_message(self):
         """
-        Sends a command to enable the actuator via USART (cmd_id = 0x01).
+        Send the reset message with cmd_id 0x15 and validate the reply.
         """
         try:
-            # Use send_usart_message with cmd_id = 0x01 and no additional data
-            self.send_usart_message(0x01)
+            # Send reset message
+            self.serial_comm.send_message(cmd_id=0x15)
+            rospy.loginfo("Reset message (cmd_id=0x15) sent. Waiting for reply...")
 
-            if self.debug_mode:
-                rospy.loginfo(f"{self.veh_name}: Actuator enable command sent (cmd_id=0x01)")
-        except serial.SerialException as e:
-            rospy.logerr(f"{self.veh_name}: Failed to send actuator enable command: {e}")
+            # Wait for the reply
+            reply = self.serial_comm.serial_conn.read(4)  # Expected reply length: 4 bytes
+            if reply == bytearray([0x02, 0x01, 0x16, 0x03]):
+                rospy.loginfo("MCU reset acknowledged (cmd_id=0x16).")
+            else:
+                rospy.logerr("No valid reset acknowledgment received. Please manually reset the MCU.")
 
+        except Exception as e:
+            rospy.logerr(f"Error sending reset message: {e}")
 
-    def estop_cb(self,msg:Bool) -> None:
+    def dynamic_reconf_callback(self, config, level):
+        rospy.loginfo(f"Dynamic Reconfigure: deadzone={config.deadzone}, kp={config.kp}, ki={config.ki}, kd={config.kd}")
+
+        # Send deadzone update only if it changes
+        if self.deadzone != config.deadzone:
+            self.deadzone = config.deadzone
+            self.serial_comm.send_message(0x11, self.deadzone)
+
+        # Send PID parameters update only if any changes
+        if self.kp != config.kp or self.ki != config.ki or self.kd != config.kd:
+            self.kp, self.ki, self.kd = config.kp, config.ki, config.kd
+            self.serial_comm.send_message(0x13, self.kp, self.ki, self.kd)
+
+        return config
+
+    def _enable_communication_gpio(self):
+        """
+        Configure GPIO 23 to enable communication by setting it high.
+        """
+        GPIO.setmode(GPIO.BCM)  # Use Broadcom pin numbering
+        self.enable_pin = 23  # GPIO pin number
+        GPIO.setup(self.enable_pin, GPIO.OUT)  # Set pin as output
+        GPIO.output(self.enable_pin, GPIO.HIGH)  # Set the pin high to enable communication
+
+        if self.debug_mode:
+            rospy.loginfo("GPIO 23 set high to enable communication.")
+
+    def estop_cb(self, msg: Bool):
+        """
+        Callback for global brake messages.
+        """
         self.global_stop_flag = msg.data
-        rospy.loginfo_once('%s: global brake: %s',self.veh_name,str(msg.data))
+        rospy.loginfo(f"Global brake: {msg.data}")
 
-
-    def estop_local_cb(self,msg:Bool) -> None:
+    def estop_local_cb(self, msg: Bool):
+        """
+        Callback for local brake messages.
+        """
         self.local_stop_flag = msg.data
-        rospy.loginfo_once('%s: local brake: %s',self.veh_name,str(msg.data))
-
-    def cmd_vel_callback(self, msg: Twist) -> None:
-
-        """Callback function for /cmd_vel topic. This is called whenever a new cmd_vel message is received."""
-
-        linear_velocity = msg.linear.x  # Forward/backward velocity
-
+        rospy.loginfo(f"Local brake: {msg.data}")
+    
+    def cmd_vel_callback(self, msg: Twist):
+        """
+        Callback for cmd_vel messages.
+        """
         if self.global_stop_flag or self.local_stop_flag:
-            self.send_usart_message(0x07, 0)
+            self.serial_comm.send_message(0x07, 0)  # Stop the vehicle
         else:
+            # Calculate wheel speed and send it to the actuator
+            linear_velocity = msg.linear.x
             omega = self.chassis.calculate_wheel_speeds(linear_velocity)
+            self.serial_comm.send_message(0x07, omega)    
 
-            # this so far is only about 
-
-            # Send omega to the lower controller via USART
-            self.send_usart_message(0x07, omega)
-
-
-    def send_usart_message(self, cmd_id: int, *data: float) -> None:
+    def direct_cmd_callback(self, msg: DirectCmd):
         """
-        Send a message over USART to the lower controller with dynamic payload length.
-
-        Args:
-            cmd_id (int): Command identifier for the message.
-            *data (float): Variable number of float values to send as the payload.
-        """
-        try:
-            # Protocol format: [START_MARKER][LENGTH][CMD_ID][DATA...][END_MARKER]
-            start_marker = 0x02
-            end_marker = 0x03
-
-            # Convert all float data to little-endian format
-            payload = bytearray()
-            for value in data:
-                payload.extend(struct.pack('<f', value))  # Pack each float
-
-            # Calculate length dynamically (1 for CMD_ID + size of payload)
-            length = 1 + len(payload)
-
-            # Build the message
-            message = bytearray([start_marker, length, cmd_id])
-            message.extend(payload)
-            message.append(end_marker)
-
-            # Send the message over USART
-            self.serial_conn.write(message)
-
-            if self.debug_mode:
-                rospy.loginfo(f"{self.veh_name}: Sent cmd_id {cmd_id}, data: {data} (Raw: {message.hex()})")
-
-        except serial.SerialException as e:
-            rospy.logerr(f"{self.veh_name}: Failed to send message over serial: {e}")
-
-    def direct_cmd_callback(self, msg: DirectCmd) -> None:
-        """
-        Callback for /direct_cmd topic. Handles throttle commands in direct throttle mode.
+        Callback for direct_cmd messages.
         """
         if self.global_stop_flag or self.local_stop_flag:
-            self.send_usart_message(0x09, 0)
-            self.send_usart_message(0x03, 0)
-            
+            self.serial_comm.send_message(0x09, 0)  # Stop throttle
         else:
-            # Send throttle value directly to the lower controller
-            throttle = msg.throttle
-            self.send_usart_message(0x09, throttle)
-            steering = msg.steering
-            # Send steering value via USART with cmd_id = 0x03
-            self.send_usart_message(0x03, steering)
+            # Send throttle and steering commands directly
+            self.serial_comm.send_message(0x09, msg.throttle)
+            self.serial_comm.send_message(0x03, msg.steering)
 
-            if self.debug_mode:
-                rospy.loginfo(f"{self.veh_name}: Sent throttle: {throttle:.2f} in direct throttle mode")
-
-
-    def read_usart_messages(self):
-        """
-        Continuously read and process messages from the STM32 over USART.
-        """
-        # rospy.loginfo("Starting USART read loop...")
-        try:
-            while not rospy.is_shutdown():
-                # Read a full message
-                message = self._read_message()
-                if message:
-                    self._process_usart_message(message)
-        except rospy.ROSInterruptException:
-            rospy.loginfo("Shutting down USART read loop.")
-        except Exception as e:
-            rospy.logerr(f"Error in USART read loop: {e}")
-
-    def _read_message(self):
-        """
-        Read a full message from USART based on the protocol.
-        Returns the raw message as a bytearray or None if no valid message is received.
-        """
-        try:
-            # Wait for the start marker
-            byte = self.serial_conn.read(1)
-            if not byte or byte[0] != 0x02:  # Start marker
-                return None
-
-            # Read the length byte
-            length_byte = self.serial_conn.read(1)
-            if not length_byte:
-                return None
-            length = length_byte[0]
-
-            # Read the remaining bytes (length + end marker)
-            message = self.serial_conn.read(length + 1)
-            if len(message) != length + 1 or message[-1] != 0x03:  # End marker
-                return None
-
-            # Return the full message
-            return bytearray([0x02]) + bytearray([length]) + message
-        except Exception as e:
-            rospy.logerr(f"Error reading USART message: {e}")
-            return None
-
-    def _process_usart_message(self, message):
+    def process_usart_message(self, message):
         """
         Process a received USART message.
         """
         try:
             cmd_id = message[2]
 
-            # Check if the message is a speed message (cmd_id = 0x04)
-            if cmd_id == 0x02:
-                speed = struct.unpack('<f', message[3:7])[0]
+            # Define a dictionary mapping cmd_id to their handler methods
+            cmd_handlers = {
+                0x02: self.handle_speed_message,  # Speed message
+            }
 
-                # Publish the speeds
-                speeds_msg = Float()
-                speeds_msg.data = speed
-                self.pub_real_wheel_speeds.publish(speeds_msg)
+            # Get the handler for the received cmd_id
+            handler = cmd_handlers.get(cmd_id, self.handle_unknown_message)
 
-                # Debug logging
-                if self.debug_mode:
-                    rospy.loginfo(f"{self.veh_name}: Received Speeds -  {speed:.2f}")
-            else:
-                rospy.logwarn(f"{self.veh_name}: Received unknown cmd_id: {cmd_id}")
+            # Call the handler with the message
+            handler(message)
+
         except Exception as e:
             rospy.logerr(f"Error processing USART message: {e}")
 
+    def handle_speed_message(self, message):
+        """
+        Handle speed update messages (cmd_id = 0x02).
+        """
+        speed = struct.unpack('<f', message[3:7])[0]
+        self.publish_wheel_speed(speed)
+
+        if self.debug_mode:
+            rospy.loginfo(f"Received speed: {speed:.2f}")
+
+    def handle_unknown_message(self, message):
+        """
+        Handle unknown or unsupported messages.
+        """
+        cmd_id = message[2]
+        rospy.logwarn(f"Unknown cmd_id received: {cmd_id}")
+
+
+    def publish_wheel_speed(self, speed):
+        """
+        Publish the received wheel speed to the 'real_wheel_speeds' topic.
+        """
+        speed_msg = Float32()
+        speed_msg.data = speed
+        self.pub_real_wheel_speeds.publish(speed_msg)
+
+        if self.debug_mode:
+            rospy.loginfo(f"Published wheel speed: {speed:.2f}")
+
+    def shutdown_hook(self):
+        """
+        Perform cleanup actions on node shutdown, such as cleaning up GPIO and closing the serial connection.
+        """
+        rospy.loginfo("Shutting down VPAHAT and cleaning up resources.")
+
+        # Clean up GPIO resources
+        try:
+            GPIO.cleanup()
+            rospy.loginfo("GPIO resources cleaned up.")
+        except Exception as e:
+            rospy.logerr(f"Error cleaning up GPIO: {e}")
+
+        # Close the serial connection
+        try:
+            if self.serial_comm.serial_conn.is_open:
+                self.serial_comm.serial_conn.close()
+                rospy.loginfo("Serial connection closed.")
+        except Exception as e:
+            rospy.logerr(f"Error closing serial connection: {e}")
+
+    
 if __name__ == "__main__":
     try:
         # Create an instance of the VPAHAT class
