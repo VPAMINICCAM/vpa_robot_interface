@@ -150,7 +150,7 @@ class VPAHAT:
         # Close the serial connection
         try:
             if self.serial_comm.serial_conn.is_open:
-                self.serial_comm.send_message(cmd_id=0x17)
+                self.serial_comm.send_message(cmd_id=self.usart_com.shutdown_id)
                 rospy.sleep(0.2)
                 self.serial_comm.serial_conn.close()
                 rospy.loginfo("Serial connection closed.")

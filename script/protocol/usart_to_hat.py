@@ -19,6 +19,7 @@ class MCUcommProtocol:
 
         self.deadzone_id    = 0x11
         self.pid_id         = 0x13
+        self.shutdown_id    = 0x17
 
         self.serial_comm.set_read_callback(self.process_usart_message)
 
