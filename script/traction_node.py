@@ -100,7 +100,7 @@ class VPAHAT:
     #     GPIO.setup(self.enable_pin, GPIO.OUT)
     #     GPIO.output(self.enable_pin, GPIO.HIGH)  # Set GPIO23 high to enable hardware
 
-        rospy.loginfo("STBY PIN set to HIGH, hardware enabled")
+        # rospy.loginfo("STBY PIN set to HIGH, hardware enabled")
 
     def _enable_USART(self) -> None:
         self.port = rospy.get_param('~port', '/dev/ttyAMA0')  # Default serial port
