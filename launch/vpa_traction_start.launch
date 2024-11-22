@@ -1,3 +1,18 @@
 <launch>
-    <node name="actuator" pkg="vpa_robot_interface" type="traction_node.py" output="screen" required="true"/>
+    <!-- Define arguments with default values -->
+    <arg name="debug_mode" default="false" />
+    <arg name="direct_throttle" default="false" />
+
+    <!-- Launch the actuator node -->
+    <node name="actuator" 
+          pkg="vpa_robot_interface" 
+          type="traction_node.py" 
+          output="screen" 
+          required="true">
+
+        <!-- Parameters -->
+        <param name="wheel_diameter" value="0.045"/> <!-- Example: 45mm diameter -->
+        <param name="debug_mode" value="$(arg debug_mode)" /> <!-- Debug mode -->
+        <param name="direct_throttle" value="$(arg direct_throttle)" /> <!-- Direct throttle -->
+    </node>
 </launch>
