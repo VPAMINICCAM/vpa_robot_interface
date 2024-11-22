@@ -5,7 +5,7 @@ import socket
 import rospy
 import serial
 import struct  # For packing and unpacking data
-import RPi.GPIO as GPIO  # Importing GPIO for controlling pins
+# import RPi.GPIO as GPIO  # Importing GPIO for controlling pins
 from geometry_msgs.msg import Twist  # Importing Twist message type for cmd_vel
 from std_msgs.msg import Float32MultiArray, Bool  # For publishing setpoints and real wheel speeds
 
@@ -35,8 +35,9 @@ class VPAHAT:
 
     def __init__(self):
         rospy.init_node('vpa_hat')
-        
-        self._enable_STBY_pin()
+        self.ack_flag = False
+        # self._enable_STBY_pin()
+
         self._enable_USART()
         self.veh_name       = socket.gethostname()
         # Chassis parameters
@@ -47,6 +48,7 @@ class VPAHAT:
         self.left_speed = 0
         self.right_speed = 0
 
+        self.send_start_messages()
         self.global_stop_flag   = True
         rospy.loginfo("%s: global brake activated",self.veh_name)
         self.local_stop_flag    = True
@@ -70,16 +72,33 @@ class VPAHAT:
         self.global_stop_flag = msg.data
         rospy.loginfo_once('%s: global brake: %s',self.veh_name,str(msg.data))
 
+    def send_start_messages(self) -> None:
+        try:
+            # Send reset message
+            rospy.loginfo("start message (cmd_id=0x01) sent. Waiting for reply...")
+            for i in range(100):
+                self.send_awake()
+                rospy.sleep(0.2)
+                if self.ack_flag:
+                    rospy.loginfo("MCU start acknowledged (cmd_id=0x04).")
+                    return
+            if i > 99:
+                rospy.signal_shutdown('Unable to start communication, please try manual reset')
+                return
+
+        except Exception as e:
+            rospy.logerr(f"Error sending reset message: {e}") 
+            return 
 
     def estop_local_cb(self,msg:Bool) -> None:
         self.local_stop_flag = msg.data
         rospy.loginfo_once('%s: local brake: %s',self.veh_name,str(msg.data))
 
-    def _enable_STBY_pin(self) -> None:
-        GPIO.setmode(GPIO.BCM)
-        self.enable_pin = 23  # GPIO23
-        GPIO.setup(self.enable_pin, GPIO.OUT)
-        GPIO.output(self.enable_pin, GPIO.HIGH)  # Set GPIO23 high to enable hardware
+    # def _enable_STBY_pin(self) -> None:
+    #     GPIO.setmode(GPIO.BCM)
+    #     self.enable_pin = 23  # GPIO23
+    #     GPIO.setup(self.enable_pin, GPIO.OUT)
+    #     GPIO.output(self.enable_pin, GPIO.HIGH)  # Set GPIO23 high to enable hardware
 
         rospy.loginfo("STBY PIN set to HIGH, hardware enabled")
 
@@ -144,6 +163,14 @@ class VPAHAT:
         except (FileNotFoundError, ValueError) as e:
             rospy.logwarn(f"Failed to read trim value from file: {e}, using default trim = 0.0")
             return 0.0  # Default trim value
+    def send_awake(self) -> None:
+        try:
+            identifier = struct.pack('<B', 0x01)
+            payload = struct.pack('<f', 0)
+            message = identifier + payload
+            self.serial_conn.write(message)
+        except Exception as e:
+            rospy.logerr(f"Error sending awake messages: {e}")
 
     def send_wheel_setpoints(self, omega_left: float, omega_right: float) -> None:
         """
@@ -168,6 +195,17 @@ class VPAHAT:
             # rospy.loginfo(f"Sent wheel setpoints in hex: {message.hex()}")
         except Exception as e:
             rospy.logerr(f"Error sending wheel setpoints: {e}")
+    def read_ack_msg(self):
+        try:
+            data = self.serial_conn.read(4)
+            if len(data) == 4:
+                identifier = data[0]
+                if identifier == 0xa2:
+                    self.ack_flag = True
+            else:
+                rospy.logwarn(f"Unexpected identifier: {identifier}")
+        except Exception as e:
+                rospy.logerr(f"Error reading ack messages: {e}")        
 
     def read_wheel_speeds(self) -> None:
         """
@@ -213,7 +251,10 @@ class VPAHAT:
         rate = rospy.Rate(20)  # Run at 20Hz to match the wheel speed update rate
         try:
             while not rospy.is_shutdown():
-                self.read_wheel_speeds()
+                if self.ack_flag:
+                    self.read_wheel_speeds()
+                else:
+                    self.read_ack_msg()
                 rate.sleep()
         except rospy.ROSInterruptException:
             pass
