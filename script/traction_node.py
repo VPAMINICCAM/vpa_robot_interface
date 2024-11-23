@@ -54,7 +54,7 @@ class VPAHAT:
 
         # Subscribers and Publishers
         self.pub_real_wheel_speeds = rospy.Publisher('wheel_speed', Float32, queue_size=10)
-
+        self.timer = rospy.Timer(rospy.Duration(1.0 / 50.0), self.timer_callback)
         #TODO: publish actual throttle, read from MCU
 
         rospy.Subscriber("/global_brake", Bool, self.estop_cb)
@@ -85,6 +85,12 @@ class VPAHAT:
             self.usart_com.send_message(self.usart_com.pid_id, self.kp, self.ki, self.kd)
 
         return config
+    def timer_callback(self, event):
+        # Create and populate the Float32MultiArray message
+
+        # Publish the message
+        self.pub_real_wheel_speeds(self.usart_com.speed)
+
 
     def estop_cb(self, msg: Bool):
         """

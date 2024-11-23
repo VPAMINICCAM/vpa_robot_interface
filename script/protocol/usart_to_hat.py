@@ -21,6 +21,8 @@ class MCUcommProtocol:
         self.pid_id         = 0x13
         self.shutdown_id    = 0x17
 
+        self.speed = 0
+
         self.serial_comm.set_read_callback(self.process_usart_message)
 
     def send_start_message(self) -> bool:
@@ -148,8 +150,7 @@ class MCUcommProtocol:
         Handle speed update messages (cmd_id = 0x02).
         """
         speed = struct.unpack('<f', message[3:7])[0]
-        self.publish_wheel_speed(speed)
-
+        self.speed = speed
         if self.debug_mode:
             rospy.loginfo(f"Received speed: {speed:.2f}")
 
