@@ -23,7 +23,7 @@ class MCUcommProtocol:
         self.right_speed = 0
 
 
-    def send_start_message(self) -> bool:
+    def send_start_message(self) -> None:
         """
         Send the reset message with cmd_id 0x15 and validate the reply.
         """
@@ -33,19 +33,20 @@ class MCUcommProtocol:
             rospy.loginfo("start message (cmd_id=0x01) sent. Waiting for reply...")
 
             for i in range(100):
-                self.serial_comm.send_message(cmd_id=self.awake_id)
+                self.send_message(cmd_id=self.awake_id)
                 rospy.sleep(0.2)
                 # Wait for the reply)
                 if self.ack_flag:
                     rospy.loginfo("MCU start acknowledged (cmd_id=0x04).")
-                    return True
-            if i > 99:
+                    return
+                
+            if i > 98:
                 rospy.signal_shutdown('Unable to start communication, please try manual reset')
-                return False
+                return
 
         except Exception as e:
             rospy.logerr(f"Error sending reset message: {e}") 
-            return False
+            return 
 
     def send_message(self, cmd_id, *data):
         """
@@ -72,7 +73,7 @@ class MCUcommProtocol:
             message = bytearray([start_marker, length, cmd_id]) + payload + bytearray([end_marker])
 
             # Send the message over USART
-            self.serial_conn.write(message)
+            self.serial_comm.serial_conn.write(message)
 
             if self.debug_mode:
                 print(f"Sent cmd_id {cmd_id}, data: {data} (Raw: {message.hex()})")
@@ -83,8 +84,8 @@ class MCUcommProtocol:
 
     def send_wheel_setpoints(self, omega_left: float, omega_right: float) -> None:
 
-        self.send_message(self.usart_com.setpoint_left_id,omega_left)
-        self.send_message(self.usart_com.setpoint_right_id,omega_right)
+        self.send_message(self.setpoint_left_id,omega_left)
+        self.send_message(self.setpoint_right_id,omega_right)
 
     def pro_read_message(self):
         """
@@ -95,17 +96,17 @@ class MCUcommProtocol:
         """
         try:
             # Wait for the start marker
-            start = self.serial_conn.read(1)
+            start = self.serial_comm.serial_conn.read(1)
             if not start or start[0] != 0x02:  # Start marker check
                 return None
 
             # Read the length byte
-            length_byte = self.serial_conn.read(1)
+            length_byte = self.serial_comm.serial_conn.read(1)
             if not length_byte:
                 return None
             length = length_byte[0]
             # Read the remaining bytes (length + end marker)
-            message = self.serial_conn.read(length + 1)
+            message = self.serial_comm.serial_conn.read(length + 1)
             if len(message) != length + 1 or message[-1] != 0x03:  # End marker check
                 return None
 
@@ -122,7 +123,6 @@ class MCUcommProtocol:
         """
         try:
             cmd_id = message[2]
-            
             # Define a dictionary mapping cmd_id to their handler methods
             cmd_handlers = {
                 0x06: self.handle_left_speed_message,  # Speed message
@@ -152,6 +152,9 @@ class MCUcommProtocol:
 
         if self.debug_mode:
             rospy.loginfo(f"Received speed: {speed:.2f}")
+
+    def handle_ack_start(self,message):
+        self.ack_flag = True
 
     def handle_unknown_message(self, message):
         """

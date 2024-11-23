@@ -38,7 +38,7 @@ class VPAHAT:
         self.sub_e_stop         = rospy.Subscriber("/global_brake", Bool, self.estop_cb, queue_size=1)
         self.sub_local_e_stop   = rospy.Subscriber("local_brake", Bool, self.estop_local_cb, queue_size=1)
 
-        self.chassis = CHASSIS(self.wheel_diameter, self.wheelbase)
+        self.chassis = CHASSIS(wheel_diameter,wheelbase)
         self.chassis.trim = self._read_trim_from_file()
 
         # Publishers
@@ -63,7 +63,7 @@ class VPAHAT:
         # Publish the message
         message = Float32MultiArray()
         message.data = [self.usart_com.left_speed, self.usart_com.right_speed]
-        self.pub_real_wheel_speeds.pubish(message)
+        self.pub_real_wheel_speeds.publish(message)
         if self.debug_mode:
             rospy.loginfo("Published message: %s", self.message)
 
@@ -107,16 +107,6 @@ class VPAHAT:
             rospy.logwarn(f"Failed to read trim value from file: {e}, using default trim = 0.0")
             return 0.0  # Default trim value
 
-    def send_sleep(self) -> None:
-        rospy.loginfo('%s: attempt to sleep the MCU',self.veh_name)
-        try:
-            identifier = struct.pack('<B', 0x17)
-            payload = struct.pack('<f', 1.0)
-            message = identifier + payload
-            for i in range(5):
-                self.serial_conn.write(message)
-        except Exception as e:
-            rospy.logerr(f"Error sending sleep messages: {e}")
 
     def read_ack_msg(self):
         try:
@@ -132,16 +122,21 @@ class VPAHAT:
 
         rospy.loginfo("Shutting down VPAHAT and cleaning up resources.")
         try:
-            if self.serial_comm.serial_conn.is_open:
-                self.serial_comm.send_message(cmd_id=self.usart_com.shutdown_id)
+            if self.usart_com.serial_comm.serial_conn.is_open:
+                self.usart_com.send_message(cmd_id=self.usart_com.shutdown_id)
                 rospy.sleep(0.2)
-                self.serial_comm.serial_conn.close()
+                self.usart_com.serial_comm.serial_conn.close()
                 rospy.loginfo("Serial connection closed.")
         except Exception as e:
             rospy.logerr(f"Error closing serial connection: {e}")
 
-
-
-if __name__ == '__main__':
-    node = VPAHAT()
-    node.run()
+if __name__ == "__main__":
+    try:
+        # Create an instance of the VPAHAT class
+        vpa_hat = VPAHAT()
+        # Keep the node running
+        rospy.spin()
+    except rospy.ROSInterruptException:
+        pass
+    except Exception as e:
+        rospy.logerr(f"Unexpected error in the traction node: {e}")
