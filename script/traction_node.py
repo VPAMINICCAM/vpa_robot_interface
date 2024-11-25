@@ -48,7 +48,7 @@ class VPAHAT:
         start_ack = self.usart_com.send_start_message()
         
         if not start_ack:
-            rospy.signal_shutdown('%s: ROS node shutting down',self.robot_name)
+            rospy.signal_shutdown('ROS node shutting down')
 
         self.usart_com.send_speed_reading_message()
 
@@ -68,7 +68,7 @@ class VPAHAT:
             rospy.Subscriber("cmd_vel", Twist, self.cmd_vel_callback)
 
         self.dynamic_params = Server(SpdCtrlConfig, self.dynamic_reconf_callback)
-        self.serial_comm.send_message(cmd_id=0x01)
+        # self.usart_com.serial_comm.send_message(cmd_id=0x01)
         rospy.loginfo("%s,actuator node initialized successfully.",self.robot_name)
 
     def dynamic_reconf_callback(self, config, level):
@@ -89,7 +89,7 @@ class VPAHAT:
         # Create and populate the Float32MultiArray message
 
         # Publish the message
-        self.pub_real_wheel_speeds(self.usart_com.speed)
+        self.publish_wheel_speed(self.usart_com.speed)
 
 
     def estop_cb(self, msg: Bool):
@@ -155,10 +155,10 @@ class VPAHAT:
 
         # Close the serial connection
         try:
-            if self.serial_comm.serial_conn.is_open:
-                self.serial_comm.send_message(cmd_id=self.usart_com.shutdown_id)
+            if self.usart_com.serial_comm.serial_conn.is_open:
+                self.usart_com.send_message(cmd_id=self.usart_com.shutdown_id)
                 rospy.sleep(0.2)
-                self.serial_comm.serial_conn.close()
+                self.usart_com.serial_comm.serial_conn.close()
                 rospy.loginfo("Serial connection closed.")
         except Exception as e:
             rospy.logerr(f"Error closing serial connection: {e}")
