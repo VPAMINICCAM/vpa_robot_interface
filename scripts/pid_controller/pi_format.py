@@ -15,7 +15,7 @@ class PI_controller:
 
     def pi_control(self, ref, sig) -> float:
         if ref == 0:
-            self.reset()
+            self.reset_controller()
             return 0
         
         # current err
