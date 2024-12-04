@@ -230,7 +230,7 @@ class WheelDriverNode:
 
         self.throttle_left      = self.omega_controller_left.pi_control(self.omega_left_ref,self.omega_left_sig)
         self.throttle_right     = self.omega_controller_right.pi_control(self.omega_right_ref,self.omega_right_sig)
-        print('throttle', self.throttle_left, self.throttle_right)
+        # print('throttle', self.throttle_left, self.throttle_right)
         
         if self.throttle_left > 1:
             self.throttle_left = 1
@@ -250,8 +250,7 @@ class WheelDriverNode:
             self.throttle_right = 0
             self.omega_controller_right.reset_controller()     
         if not self.estop and not self.local_estop:
-            # self.driver.set_wheels_throttle(left=self.throttle_left,right=self.throttle_right)
-            self.driver.set_wheels_throttle(left=1,right=1)
+            self.driver.set_wheels_throttle(left=self.throttle_left,right=self.throttle_right)
         else:
             self.driver.set_wheels_throttle(left=0,right=0)
             self.omega_controller_left.reset_controller()
