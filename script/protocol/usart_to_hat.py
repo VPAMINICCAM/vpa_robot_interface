@@ -129,7 +129,7 @@ class MCUcommProtocol:
             
             # Define a dictionary mapping cmd_id to their handler methods
             cmd_handlers = {
-                0x02: self.handle_speed_message,  # Speed message
+                self.omega_id: self.handle_speed_message,  # Speed message
                 0x04: self.handle_ack_start,
             }
 
