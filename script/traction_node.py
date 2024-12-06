@@ -34,10 +34,12 @@ class VPAHAT:
         self.local_stop_flag    = True
 
         # controller parameters for lower level controller
-        self.deadzone   = 0.2
-        self.kp         = 0.1
+        self.kp         = 0.02
         self.ki         = 0
         self.kd         = 0
+
+        self.kff = 0.0167
+        self.bff = 0.2165
 
         # setting communication
         self.usart_com = MCUcommProtocol(SerialComm('/dev/ttyAMA0', 115200, self.debug_mode))
@@ -54,6 +56,7 @@ class VPAHAT:
 
         # Subscribers and Publishers
         self.pub_real_wheel_speeds = rospy.Publisher('wheel_speed', Float32, queue_size=10)
+        self.pub_real_throttle = rospy.Publisher('throttle_set', Float32, queue_size=10)
         self.timer = rospy.Timer(rospy.Duration(1.0 / 50.0), self.timer_callback)
         #TODO: publish actual throttle, read from MCU
 
@@ -72,17 +75,16 @@ class VPAHAT:
         rospy.loginfo("%s,actuator node initialized successfully.",self.robot_name)
 
     def dynamic_reconf_callback(self, config, level):
-        rospy.loginfo(f"Dynamic Reconfigure: deadzone={config.deadzone}, kp={config.kp}, ki={config.ki}, kd={config.kd}")
-
-        # Send deadzone update only if it changes
-        if self.deadzone != config.deadzone:
-            self.deadzone = config.deadzone
-            self.usart_com.send_message(self.usart_com.deadzone_id, self.deadzone)
+        rospy.loginfo(f"Dynamic Reconfigure:kp={config.kp}, ki={config.ki}, kd={config.kd},kff={config.kff},bff={config.bff}")
 
         # Send PID parameters update only if any changes
         if self.kp != config.kp or self.ki != config.ki or self.kd != config.kd:
             self.kp, self.ki, self.kd = config.kp, config.ki, config.kd
             self.usart_com.send_message(self.usart_com.pid_id, self.kp, self.ki, self.kd)
+
+        if self.kff != config.kff or self.bff != config.bff:
+            self.kff,self.bff = config.kff,config.bff
+            self.usart_com.send_message(self.usart_com.pid_ff_id,self.kff,self.bff)
 
         return config
     def timer_callback(self, event):
@@ -90,6 +92,7 @@ class VPAHAT:
 
         # Publish the message
         self.publish_wheel_speed(self.usart_com.speed)
+        self.publish_throttle(self.usart_com.throttle_set)
 
 
     def estop_cb(self, msg: Bool):
@@ -115,8 +118,11 @@ class VPAHAT:
         else:
             # Calculate wheel speed and send it to the actuator
             linear_velocity = msg.linear.x
+            yaw = msg.angular.z
             omega = self.chassis.calculate_wheel_speeds(linear_velocity)
-            self.usart_com.send_message(self.usart_com.omega_id, omega)    
+            self.usart_com.send_message(self.usart_com.omega_id, omega)
+
+            self.usart_com.send_message(self.usart_com.steer_id,yaw)
             #TODO: convert yaw to steering
 
     def direct_cmd_callback(self, msg: DirectCmd):
@@ -140,6 +146,17 @@ class VPAHAT:
 
         if self.debug_mode:
             rospy.loginfo(f"Published wheel speed: {speed:.2f}")
+
+    def publish_throttle(self, throttle):
+        """
+        Publish the received throttle.
+        """
+        throttle_msg = Float32()
+        throttle_msg.data = throttle
+        self.pub_real_throttle.publish(throttle_msg)
+
+        if self.debug_mode:
+            rospy.loginfo(f"Published throttle: {throttle:.2f}")
 
     def shutdown_hook(self):
         """

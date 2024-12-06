@@ -19,6 +19,7 @@ class MCUcommProtocol:
 
         self.deadzone_id    = 0x11
         self.pid_id         = 0x13
+        self.pid_ff_id      = 0x21
         self.shutdown_id    = 0x17
 
         self.effort_id      = 0x12
