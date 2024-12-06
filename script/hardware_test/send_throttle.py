@@ -3,7 +3,6 @@
 import serial
 import struct
 import time
-import RPi.GPIO as GPIO
 
 
 class DirectMCUCommand:
@@ -13,12 +12,6 @@ class DirectMCUCommand:
         """
         self.port = port
         self.baudrate = baudrate
-
-        # Initialize GPIO
-        GPIO.setmode(GPIO.BCM)
-        self.enable_pin = 23
-        GPIO.setup(self.enable_pin, GPIO.OUT)
-        GPIO.output(self.enable_pin, GPIO.LOW)
 
         # Initialize serial connection
         self.serial_conn = serial.Serial(
@@ -34,7 +27,6 @@ class DirectMCUCommand:
         """
         High GPIO23 and send actuator enable command.
         """
-        GPIO.output(self.enable_pin, GPIO.HIGH)
         time.sleep(0.1)  # Allow some time for the system to stabilize
 
         # Enable actuator command: 02 01 01 03
@@ -67,7 +59,6 @@ class DirectMCUCommand:
         """
         Clean up resources (GPIO and serial connection).
         """
-        GPIO.cleanup()
         if self.serial_conn.is_open:
             self.serial_conn.close()
         print("Cleaned up resources.")
