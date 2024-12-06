@@ -21,8 +21,10 @@ class MCUcommProtocol:
         self.pid_id         = 0x13
         self.shutdown_id    = 0x17
 
-        self.speed = 0
+        self.effort_id      = 0x12
 
+        self.speed = 0
+        self.throttle_set = 0
         self.serial_comm.set_read_callback(self.process_usart_message)
 
     def send_start_message(self) -> bool:
@@ -129,8 +131,9 @@ class MCUcommProtocol:
             
             # Define a dictionary mapping cmd_id to their handler methods
             cmd_handlers = {
-                self.omega_id: self.handle_speed_message,  # Speed message
+                0x02: self.handle_speed_message,  # Speed message
                 0x04: self.handle_ack_start,
+                0x12: self.handle_throttle_message
             }
 
             # Get the handler for the received cmd_id
@@ -160,3 +163,8 @@ class MCUcommProtocol:
         """
         cmd_id = message[2]
         rospy.logwarn(f"Unknown cmd_id received: {cmd_id}")
+
+    def handle_throttle_message(self,message):
+        
+        effort = struct.unpack('<f', message[3:7])[0]
+        self.throttle_set = effort
