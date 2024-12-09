@@ -34,8 +34,8 @@ class VPAHAT:
         self.local_stop_flag    = True
 
         # controller parameters for lower level controller
-        self.kp         = 0.02
-        self.ki         = 0
+        self.kp         = 0.15
+        self.ki         = 0.01
         self.kd         = 0
 
         self.kff = 0.0167
