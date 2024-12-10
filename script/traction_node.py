@@ -34,12 +34,12 @@ class VPAHAT:
         self.local_stop_flag    = True
 
         # controller parameters for lower level controller
-        self.kp         = 0.15
-        self.ki         = 0.01
+        self.kp         = 0.05
+        self.ki         = 0.004
         self.kd         = 0
 
-        self.kff = 0.0167
-        self.bff = 0.2165
+        self.kff = 0.01
+        self.bff = 0.14
 
         # setting communication
         self.usart_com = MCUcommProtocol(SerialComm('/dev/ttyAMA0', 115200, self.debug_mode))
@@ -75,7 +75,7 @@ class VPAHAT:
         rospy.loginfo("%s,actuator node initialized successfully.",self.robot_name)
 
     def dynamic_reconf_callback(self, config, level):
-        rospy.loginfo(f"Dynamic Reconfigure:kp={config.kp}, ki={config.ki}, kd={config.kd},kff={config.kff},bff={config.bff}")
+        rospy.loginfo(f"Dynamic Reconfigure:kp={config.kp}, ki={config.ki}, kd={config.kd}, kff={config.kff}, bff={config.bff}")
 
         # Send PID parameters update only if any changes
         if self.kp != config.kp or self.ki != config.ki or self.kd != config.kd:
