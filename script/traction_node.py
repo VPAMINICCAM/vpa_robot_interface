@@ -121,8 +121,9 @@ class VPAHAT:
             yaw = msg.angular.z
             omega = self.chassis.calculate_wheel_speeds(linear_velocity)
             self.usart_com.send_message(self.usart_com.omega_id, omega)
-
-            self.usart_com.send_message(self.usart_com.steer_id,yaw)
+        
+            str_value = self.chassis.yaw2steerratio(linear_velocity,yaw)
+            self.usart_com.send_message(self.usart_com.steer_id,str_value)
             #TODO: convert yaw to steering
 
     def direct_cmd_callback(self, msg: DirectCmd):
