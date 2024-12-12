@@ -1,0 +1,20 @@
+<launch>
+    <arg name="bus" default="6" />
+    <arg name="device_address" default="0x68" />
+    <arg name="imu_frame" default="imu_link" />
+    <arg name="imu_pub_freq" default="20" />
+    <arg name="dlpf_cfg" default="2" />
+
+    <node 
+        pkg="vpa_robot_interface" 
+        type="imu_node.py" 
+        name="imu_node" 
+        output="screen">
+
+        <param name="bus" value="$(arg bus)" />
+        <param name="device_address" value="$(arg device_address)" />
+        <param name="imu_frame" value="$(arg imu_frame)" />
+        <param name="imu_pub_freq" value="$(arg imu_pub_freq)" />
+        <param name="dlpf_cfg" value="$(arg dlpf_cfg)" />
+    </node>
+</launch>
