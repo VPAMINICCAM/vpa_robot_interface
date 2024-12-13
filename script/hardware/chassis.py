@@ -8,6 +8,7 @@ class CHASSIS:
             return linear_x / (3.14 * self.wheel_diameter)
         return 0
 
+
     def yaw2steerratio(self, linear_x: float, yaw_demand: float) -> float:
         """
         Calculates the steering ratio based on linear velocity and yaw demand.
@@ -32,7 +33,7 @@ class CHASSIS:
             inver_R = -2
 
         # Calculate feedforward steering ratio
-        str_ff = 0.107 * inver_R**3 + 0.086 * inver_R**2 + 0.163 * inver_R + 0.08
+        str_ff = 0.08 * inver_R**3 + 0.08 * inver_R**2 + 0.12 * inver_R + 0.05
 
         # Constrain the steering ratio
         if str_ff > 1:
