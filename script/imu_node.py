@@ -11,6 +11,7 @@ from std_msgs.msg import Bool
 from tf.transformations import quaternion_about_axis
 
 class MPU6050Registers(Enum):
+    CONFIG = 0x1A
     PWR_MGMT_1 = 0x6B
     ACCEL_CONFIG = 0x1C
     ACCEL_XOUT_H = 0x3B
