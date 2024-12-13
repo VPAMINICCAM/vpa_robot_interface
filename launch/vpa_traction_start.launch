@@ -2,6 +2,7 @@
     <!-- Define arguments with default values -->
     <arg name="debug_mode" default="false" />
     <arg name="direct_throttle" default="false" />
+    <arg name="start_imu" default="true" /> <!-- Argument to control IMU launch -->
 
     <!-- Launch the actuator node -->
     <node name="actuator" 
@@ -15,4 +16,9 @@
         <param name="debug_mode" value="$(arg debug_mode)" /> <!-- Debug mode -->
         <param name="direct_throttle" value="$(arg direct_throttle)" /> <!-- Direct throttle -->
     </node>
+
+    <!-- Conditionally include the IMU node -->
+    <group if="$(arg start_imu)">
+        <include file="$(find vpa_robot_interface)/launch/vpa_imu.launch" />
+    </group>
 </launch>
