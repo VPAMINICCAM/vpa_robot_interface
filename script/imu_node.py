@@ -45,8 +45,6 @@ class MPU6050Node:
         self.temp_pub = rospy.Publisher('temperature', Temperature, queue_size=1)
         self.imu_pub = rospy.Publisher('imu', Imu, queue_size=1)
 
-        rospy.Subscriber("robot_interface_shutdown", Bool, self.signal_shut)
-
         # Initialize MPU6050
         self.bus.write_byte_data(self.addr, MPU6050Registers.PWR_MGMT_1.value, 0)
         self.set_dlpf(self.dlpf_cfg)
