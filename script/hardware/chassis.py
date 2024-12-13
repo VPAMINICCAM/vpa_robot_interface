@@ -19,8 +19,11 @@ class CHASSIS:
         Returns:
             float: The steering ratio, constrained between -1 and 1.
         """
+        if linear_x == 0:
+            inver_R = 0
+        else:
         # Calculate the inverse radius
-        inver_R = yaw_demand / linear_x
+            inver_R = yaw_demand / linear_x
 
         # Constrain the inverse radius
         if inver_R > 2:
