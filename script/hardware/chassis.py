@@ -36,6 +36,8 @@ class CHASSIS:
         if inver_R < 0:
             inver_R = -inver_R
         str_ff = 0.08 * inver_R**3 + 0.08 * inver_R**2 + 0.12 * inver_R + 0.05
+        if inver_R < 0:
+            str_ff = -str_ff
     
         # Constrain the steering ratio
         if str_ff > 1:
