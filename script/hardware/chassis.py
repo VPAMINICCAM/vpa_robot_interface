@@ -35,10 +35,10 @@ class CHASSIS:
         # Calculate feedforward steering ratio
         if inver_R < 0:
             inver_R = -inver_R
-        str_ff = 0.08 * inver_R**3 + 0.08 * inver_R**2 + 0.12 * inver_R + 0.05
-        if inver_R < 0:
+            str_ff = 0.08 * inver_R**3 + 0.08 * inver_R**2 + 0.12 * inver_R + 0.05
             str_ff = -str_ff
-    
+        else:
+            str_ff = 0.08 * inver_R**3 + 0.08 * inver_R**2 + 0.12 * inver_R
         # Constrain the steering ratio
         if str_ff > 1:
             str_ff = 1

@@ -146,7 +146,6 @@ class VPAHAT:
                     pid_output = 0
                 str_value += pid_output
 
-
             self.usart_com.send_message(self.usart_com.steer_id,str_value)
 
     def direct_cmd_callback(self, msg: DirectCmd):
