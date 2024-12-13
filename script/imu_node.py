@@ -108,9 +108,9 @@ class MPU6050Node:
         orientation = quaternion_about_axis(angle, axis)
 
         # Read gyro values
-        gyro_x = self.read_word_2c(MPU6050Registers.GYRO_XOUT_H) / 131.0
-        gyro_y = self.read_word_2c(MPU6050Registers.GYRO_YOUT_H) / 131.0
-        gyro_z = self.read_word_2c(MPU6050Registers.GYRO_ZOUT_H) / 131.0
+        gyro_x = self.read_word_2c(MPU6050Registers.GYRO_XOUT_H) / 131.0 * (np.pi / 180)
+        gyro_y = self.read_word_2c(MPU6050Registers.GYRO_YOUT_H) / 131.0 * (np.pi / 180)
+        gyro_z = self.read_word_2c(MPU6050Registers.GYRO_ZOUT_H) / 131.0 * (np.pi / 180)
 
         # Populate IMU message
         imu_msg.orientation.x, imu_msg.orientation.y, imu_msg.orientation.z, imu_msg.orientation.w = orientation
