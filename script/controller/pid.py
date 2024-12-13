@@ -28,6 +28,11 @@ class PID:
         :param measurement: Current value
         :return: Smoothed PID output
         """
+        if setpoint == 0:
+            self._integral = 0
+            self._last_output = 0
+            return 0.0
+        
         error = setpoint - measurement
         self._integral += error
 
@@ -54,3 +59,9 @@ class PID:
 
         self._prev_error = error
         return smoothed_output
+
+    def reset_pid(self):
+        self._integral = 0
+        self._prev_error = 0
+        self._last_output = 0
+        
