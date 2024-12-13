@@ -5,13 +5,14 @@ import rospy
 
 from geometry_msgs.msg import Twist  # Importing Twist message type for cmd_vel
 from std_msgs.msg import Float32, Bool
+from sensor_msgs.msg import Imu
 from vpa_robot_interface.msg import DirectCmd  # Import the custom message
 
 from hardware.chassis import CHASSIS
 from hardware.serial_com import SerialComm
 
 from protocol.usart_to_hat import MCUcommProtocol
-
+from controller.pid import PID
 from dynamic_reconfigure.server import Server
 from vpa_robot_interface.cfg import SpdCtrlConfig
 
@@ -29,6 +30,8 @@ class VPAHAT:
 
         self.debug_mode         = rospy.get_param('~debug_mode', False)
         self.direct_throttle    = rospy.get_param('~direct_throttle', False)
+
+        self.start_imu          = rospy.get_param('~start_imu', True)
 
         self.global_stop_flag   = True
         self.local_stop_flag    = True
@@ -58,7 +61,6 @@ class VPAHAT:
         self.pub_real_wheel_speeds = rospy.Publisher('wheel_speed', Float32, queue_size=10)
         self.pub_real_throttle = rospy.Publisher('throttle_set', Float32, queue_size=10)
         self.timer = rospy.Timer(rospy.Duration(1.0 / 50.0), self.timer_callback)
-        #TODO: publish actual throttle, read from MCU
 
         rospy.Subscriber("/global_brake", Bool, self.estop_cb)
         rospy.Subscriber("local_brake", Bool, self.estop_local_cb)
@@ -70,12 +72,25 @@ class VPAHAT:
             rospy.loginfo('%s: twist cmd input mode',self.robot_name)
             rospy.Subscriber("cmd_vel", Twist, self.cmd_vel_callback)
 
+        
+        # Initialize IMU data if IMU is enabled
+        self.angular_velocity_z = 0.0
+        if self.start_imu:
+            self.steer_pid = PID(
+                Kp=0.2,output_limits=(-0.1,0.1),smoothing_factor=1
+            )
+            rospy.Subscriber('imu', Imu, self.imu_callback)
+
+
         self.dynamic_params = Server(SpdCtrlConfig, self.dynamic_reconf_callback)
         # self.usart_com.serial_comm.send_message(cmd_id=0x01)
         rospy.loginfo("%s,actuator node initialized successfully.",self.robot_name)
 
+    def imu_callback(self, msg:Imu):
+        self.angular_velocity_z = msg.angular_velocity.z
+
     def dynamic_reconf_callback(self, config, level):
-        rospy.loginfo(f"Dynamic Reconfigure:kp={config.kp}, ki={config.ki}, kd={config.kd}, kff={config.kff}, bff={config.bff}")
+        rospy.loginfo(f"Dynamic Reconfigure speed pid:kp={config.kp}, ki={config.ki}, kd={config.kd}, kff={config.kff}, bff={config.bff}")
 
         # Send PID parameters update only if any changes
         if self.kp != config.kp or self.ki != config.ki or self.kd != config.kd:
@@ -123,8 +138,12 @@ class VPAHAT:
             self.usart_com.send_message(self.usart_com.omega_id, omega)
         
             str_value = self.chassis.yaw2steerratio(linear_velocity,yaw)
+
+            if self.start_imu:
+                pid_output = self.steer_pid.compute(setpoint=yaw,measurement=self.angular_velocity_z) # negative for right turn
+                str_value += pid_output
+
             self.usart_com.send_message(self.usart_com.steer_id,str_value)
-            #TODO: convert yaw to steering
 
     def direct_cmd_callback(self, msg: DirectCmd):
         """
