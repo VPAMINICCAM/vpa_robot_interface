@@ -77,7 +77,7 @@ class VPAHAT:
         self.angular_velocity_z = 0.0
         if self.start_imu:
             self.steer_pid = PID(
-                Kp=0.2,output_limits=(-0.1,0.1),smoothing_factor=1
+                Kp=0.3,Ki=0.1,integral_limits=(-5,5),output_limits=(-0.05,0.05),smoothing_factor=0.5
             )
             rospy.Subscriber('imu', Imu, self.imu_callback)
 
@@ -141,7 +141,11 @@ class VPAHAT:
 
             if self.start_imu:
                 pid_output = self.steer_pid.compute(setpoint=yaw,measurement=self.angular_velocity_z) # negative for right turn
+                if linear_velocity == 0:
+                    self.steer_pid.reset_pid()
+                    pid_output = 0
                 str_value += pid_output
+
 
             self.usart_com.send_message(self.usart_com.steer_id,str_value)
 
