@@ -14,7 +14,7 @@ This branch is built for [PiRacer](https://www.waveshare.com/product/robotics/mo
 It is a raspberry pi 4b mounted on a latrax rally chassis and power train.
 Currently the following sensors are installed 
 - [x] Camera
-- [ ] IMU
+- [x] IMU
 - [ ] Lidar
 
 Despite the waveshare provided a pre-built image, the dependencies have been rebuilt and unnecessary libraries have been removed as the image processing resources are not the main focus of the MiniCCAM lab.
