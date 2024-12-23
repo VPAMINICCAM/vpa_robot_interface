@@ -43,6 +43,7 @@ class VPAHAT:
 
         # Publishers
         self.pub_real_wheel_speeds = rospy.Publisher('real_wheel_speeds', Float32MultiArray, queue_size=10)
+        self.pub_encoders = rospy.Publisher('encoder_count',Float32MultiArray,queue_size=1)
         if self.debug_mode:
             self.pub_setpoints_debug = rospy.Publisher('setpoints_debug', Float32MultiArray, queue_size=10)
 
@@ -66,6 +67,7 @@ class VPAHAT:
         self.pub_real_wheel_speeds.publish(message)
         if self.debug_mode:
             rospy.loginfo("Published message: %s", self.message)
+        self.pub_encoders() 
 
     def cmd_vel_callback(self, msg: Twist) -> None:
         """Callback function for /cmd_vel topic. This is called whenever a new cmd_vel message is received."""
@@ -107,6 +109,10 @@ class VPAHAT:
             rospy.logwarn(f"Failed to read trim value from file: {e}, using default trim = 0.0")
             return 0.0  # Default trim value
 
+    def publish_encoders_count(self):
+        message = Float32MultiArray()
+        message.data = [self.usart_com.left_enc_count,self.usart_com.right_enc_count]
+        self.pub_encoders.publish(message)
 
     def read_ack_msg(self):
         try:

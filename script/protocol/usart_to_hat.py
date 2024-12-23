@@ -22,6 +22,9 @@ class MCUcommProtocol:
         self.left_speed = 0
         self.right_speed = 0
 
+        self.left_enc_count     = 0
+        self.right_enc_count    = 0
+
 
     def send_start_message(self) -> None:
         """
@@ -128,6 +131,8 @@ class MCUcommProtocol:
                 0x06: self.handle_left_speed_message,  # Speed message
                 0x08: self.handle_right_speed_message,
                 0x04: self.handle_ack_start,
+                0x20: self.handle_left_enc,
+                0x22: self.handle_right_enc
             }
 
             # Get the handler for the received cmd_id
@@ -162,3 +167,9 @@ class MCUcommProtocol:
         """
         cmd_id = message[2]
         rospy.logwarn(f"Unknown cmd_id received: {cmd_id}")
+    
+    def handle_left_enc(self,message):
+        self.left_enc_count = struct.unpack('<f', message[3:7])[0]
+    
+    def handle_right_enc(self,message):
+        self.right_enc_count = struct.unpack('<f', message[3:7])[0]
