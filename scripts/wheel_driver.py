@@ -13,6 +13,7 @@ from pid_controller.pi_format import PI_controller
 
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Bool
+from sensor_msgs.msg import Imu
 
 from dynamic_reconfigure.server import Server
 
@@ -171,6 +172,12 @@ class WheelDriverNode:
         self.sub_local_e_stop   = rospy.Subscriber("local_brake", Bool, self.estop_local_cb, queue_size=1)
         self.pub_wheel_debug = rospy.Publisher('wheel_ref',WheelsCmd,queue_size=1)
         rospy.Subscriber("robot_interface_shutdown", Bool, self.signal_shut)
+        self.dyna_trim = rospy.get_param('~dyna_trim', False)
+        self.yaw_setpoint = 0.0
+        self.yaw_measure = 0.0
+        self.trim_pid = PI_controller(kp=0.1, ki=0.01)
+        if self.dyna_trim:
+            self.sub_imu = rospy.Subscriber("imu", Imu, self.imu_cb)
         # self.pub_wheel_dir = rospy.Publisher('wheel_direction')
         
         self.srv = Server(omegaConfig,self.dynamic_reconfigure_callback)
@@ -183,6 +190,7 @@ class WheelDriverNode:
     def car_cmd_cb(self,msg_car_cmd:Twist) -> None:
         msg_car_cmd.linear.x    = max(min(msg_car_cmd.linear.x,self._v_max),-self._v_max)
         msg_car_cmd.angular.z   = max(min(msg_car_cmd.angular.z,self._omega_max),-self._omega_max)
+        self.yaw_setpoint = msg_car_cmd.angular.z
         if not self.estop:
             self.omega_right_ref    = ((msg_car_cmd.linear.x + 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) * (1 + self.trim)
             self.omega_left_ref     = ((msg_car_cmd.linear.x - 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) * (1 - self.trim)
@@ -256,6 +264,12 @@ class WheelDriverNode:
             self.omega_controller_left.reset_controller()
             self.omega_controller_right.reset_controller()
             
+    def imu_cb(self, msg: Imu) -> None:
+        """Callback function to handle IMU data."""
+        self.yaw_measure = msg.angular_velocity.z
+        _trim = self.trim_pid.pi_control(self.yaw_setpoint, self.yaw_measure)
+        self.trim = max(min(_trim, 0.1), -0.1)
+        # rospy.loginfo(f"Received IMU data: {msg}, Updated trim: {self.trim}")
 
     def dynamic_reconfigure_callback(self,config,level):
         self.kp = config.kp
