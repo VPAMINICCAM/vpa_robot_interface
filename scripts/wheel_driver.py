@@ -191,12 +191,12 @@ class WheelDriverNode:
         msg_car_cmd.linear.x    = max(min(msg_car_cmd.linear.x,self._v_max),-self._v_max)
         msg_car_cmd.angular.z   = max(min(msg_car_cmd.angular.z,self._omega_max),-self._omega_max)
         self.yaw_setpoint = -msg_car_cmd.angular.z  # Negate the yaw setpoint
+        self.omega_right_ref    = 0
+        self.omega_left_ref     = 0
         if not self.estop:
-            self.omega_right_ref    = ((msg_car_cmd.linear.x + 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) * (1 + self.trim)
-            self.omega_left_ref     = ((msg_car_cmd.linear.x - 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) * (1 - self.trim)
-        else:
-            self.omega_right_ref    = 0
-            self.omega_left_ref     = 0
+            if msg_car_cmd.linear.x != 0:
+                self.omega_right_ref    = ((msg_car_cmd.linear.x + 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) * (1 + self.trim)
+                self.omega_left_ref     = ((msg_car_cmd.linear.x - 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) * (1 - self.trim)
         
         #print('ref',self.omega_left_ref,self.omega_right_ref)
         msg_wheel_cmd = WheelsCmd()
