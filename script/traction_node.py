@@ -67,7 +67,7 @@ class VPAHAT:
         self.pub_real_wheel_speeds.publish(message)
         if self.debug_mode:
             rospy.loginfo("Published message: %s", self.message)
-        self.pub_encoders() 
+        self.publish_encoders_count()
 
     def cmd_vel_callback(self, msg: Twist) -> None:
         """Callback function for /cmd_vel topic. This is called whenever a new cmd_vel message is received."""
