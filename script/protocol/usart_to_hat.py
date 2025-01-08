@@ -153,7 +153,7 @@ class MCUcommProtocol:
 
     def handle_right_speed_message(self,message):
         speed = struct.unpack('<f', message[3:7])[0]
-        self.right_speed_speed = speed
+        self.right_speed = speed
 
         if self.debug_mode:
             rospy.loginfo(f"Received speed: {speed:.2f}")
