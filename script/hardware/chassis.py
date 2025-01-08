@@ -19,3 +19,14 @@ class CHASSIS:
             omega_right = 0
         return omega_left, omega_right
         
+    def caculate_wheel_speeds_rps(self,linear_x:float,angular_z:float):
+        """Calculate left (A) and right (B) wheel speeds in revolutions per second (rps) based on the linear and angular velocity from cmd_vel."""
+        if not linear_x == 0:
+            r_left = linear_x - (self.wheelbase/2 * angular_z) * (1 - self.trim)
+            r_right = linear_x + (self.wheelbase/2 * angular_z) * (1 + self.trim)
+            omega_left = r_left / (self.wheel_diameter * 3.14)
+            omega_right = r_right / (self.wheel_diameter * 3.14)
+        else:
+            omega_left = 0
+            omega_right = 0
+        return omega_left, omega_right

@@ -75,8 +75,8 @@ class VPAHAT:
         angular_velocity = msg.angular.z  # Angular velocity (rotation)
 
         # Calculate left and right wheel speeds in radians per second
-        omega_left, omega_right = self.chassis.calculate_wheel_speeds(linear_velocity, angular_velocity)
-
+        # omega_left, omega_right = self.chassis.calculate_wheel_speeds(linear_velocity, angular_velocity)
+        omega_left, omega_right = self.chassis.caculate_wheel_speeds_rps(linear_velocity,angular_velocity)
         # Publish the setpoints if debug mode is enabled
         if self.debug_mode:
             # Log the calculated wheel speeds
