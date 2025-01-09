@@ -11,7 +11,7 @@
           required="true">
 
         <!-- Parameters -->
-        <param name="wheel_diameter" value="0.045"/> <!-- Example: 45mm diameter -->
+        <param name="wheel_diameter" value="0.065"/> <!-- Example: 45mm diameter -->
         <param name="debug_mode" value="$(arg debug_mode)" /> <!-- Debug mode -->
         <param name="direct_throttle" value="$(arg direct_throttle)" /> <!-- Direct throttle -->
     </node>
