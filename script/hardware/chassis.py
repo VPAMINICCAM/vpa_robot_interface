@@ -30,3 +30,11 @@ class CHASSIS:
             omega_left = 0
             omega_right = 0
         return omega_left, omega_right
+    
+    def calculate_yaw_rate_from_wheelspd(self, omega_left: float, omega_right: float):
+        """Calculate the yaw rate based on the left and right wheel speeds in revolutions per second (rps)."""
+        # Convert wheel speeds from rps to linear velocities
+        v_left = omega_left * self.wheel_diameter * 3.14
+        v_right = omega_right * self.wheel_diameter * 3.14
+        # Calculate yaw rate
+        return (v_right - v_left) / self.wheelbase

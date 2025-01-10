@@ -3,15 +3,15 @@
 import os
 import socket
 import rospy
-import serial
-import struct  # For packing and unpacking data
 
 from geometry_msgs.msg import Twist  # Importing Twist message type for cmd_vel
 from std_msgs.msg import Float32MultiArray, Bool  # For publishing setpoints and real wheel speeds
-
+from sensor_msgs.msg import Imu  # For subscribing to the IMU data
 from hardware.chassis import CHASSIS
 from hardware.usart import SerialComm
 from protocol.usart_to_hat import MCUcommProtocol
+
+from sensor_signal_process.filter import ComplementaryFilter
 
 class VPAHAT:
 
@@ -38,8 +38,13 @@ class VPAHAT:
         self.sub_e_stop         = rospy.Subscriber("/global_brake", Bool, self.estop_cb, queue_size=1)
         self.sub_local_e_stop   = rospy.Subscriber("local_brake", Bool, self.estop_local_cb, queue_size=1)
 
+        self.yaw_rate_imu            = 0
+        self.sub_imu                 = rospy.Subscriber("imu", Imu, self.imu_cb, queue_size=1)
+
         self.chassis = CHASSIS(wheel_diameter,wheelbase)
         self.chassis.trim = self._read_trim_from_file()
+
+        self.filter = ComplementaryFilter(alpha=0.7)  # Create a complementary filter with alpha = 0.7
 
         # Publishers
         self.pub_real_wheel_speeds = rospy.Publisher('real_wheel_speeds', Float32MultiArray, queue_size=10)
@@ -60,13 +65,18 @@ class VPAHAT:
         self.local_stop_flag = msg.data
         rospy.loginfo_once('%s: local brake: %s',self.veh_name,str(msg.data))
 
+    def imu_cb(self,msg:Imu) -> None:
+        self.yaw_rate_imu = msg.angular_velocity.z
+
     def timer_callback(self, event):
         # Publish the message
         message = Float32MultiArray()
-        message.data = [self.usart_com.left_speed, self.usart_com.right_speed]
+        self.yaw_rate_model = self.chassis.calculate_yaw_rate_from_wheelspd(self.usart_com.left_speed, self.usart_com.right_speed)
+        self.yaw_rate = self.filter.update(self.yaw_rate_imu, self.yaw_rate_model)
+        message.data = [self.usart_com.left_speed, self.usart_com.right_speed,self.yaw_rate]
         self.pub_real_wheel_speeds.publish(message)
         if self.debug_mode:
-            rospy.loginfo("Published message: %s", self.message)
+            rospy.loginfo("Published message: %s",message)
         self.publish_encoders_count()
 
     def cmd_vel_callback(self, msg: Twist) -> None:

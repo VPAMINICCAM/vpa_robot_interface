@@ -15,4 +15,6 @@
         <param name="debug_mode" value="$(arg debug_mode)" /> <!-- Debug mode -->
         <param name="direct_throttle" value="$(arg direct_throttle)" /> <!-- Direct throttle -->
     </node>
+    <!-- Include the IMU launch file -->
+    <include file="$(find vpa_robot_interface)/launch/vpa_imu.launch" />
 </launch>
