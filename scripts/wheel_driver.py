@@ -132,8 +132,8 @@ class WheelDriverNode:
         # self.omega_controller_left  = PI_controller(ki=self.ki,kp=self.kp)
         # self.omega_controller_right = PI_controller(ki=self.ki,kp=self.kp)
 
-        self.omega_controller_left = FeedforwardPIController(kp=self.kp, ki=self.ki, kff=1.5, bff=0.0, integral_limit=1.0, output_limit=1.0)
-        self.omega_controller_right = FeedforwardPIController(kp=self.kp, ki=self.ki, kff=1.5, bff=0.0, integral_limit=1.0, output_limit=1.0)
+        self.omega_controller_left = FeedforwardPIController(kp=self.kp, ki=self.ki, kff=0.1, bff=0.0, integral_limit=1.0, output_limit=1.0)
+        self.omega_controller_right = FeedforwardPIController(kp=self.kp, ki=self.ki, kff=0.1, bff=0.0, integral_limit=1.0, output_limit=1.0)
 
         self.omega_left_ref     = 0
         self.omega_right_ref    = 0
@@ -240,8 +240,8 @@ class WheelDriverNode:
         self.omega_right_sig    = msg.omega_right
         #print('signal',self.omega_left_sig,self.omega_right_sig)
 
-        self.throttle_left      = self.omega_controller_left.update(self.omega_left_ref,self.omega_left_sig)
-        self.throttle_right     = self.omega_controller_right.update(self.omega_right_ref,self.omega_right_sig)
+        self.throttle_left      = self.omega_controller_left.update(self.omega_left_ref,self.omega_left_sig,1/20)
+        self.throttle_right     = self.omega_controller_right.update(self.omega_right_ref,self.omega_right_sig,1/20)
         # print('throttle', self.throttle_left, self.throttle_right)
         
         # if self.throttle_left > 1:
