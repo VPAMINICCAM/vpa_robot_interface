@@ -125,15 +125,16 @@ class WheelDriverNode:
             from adafruit_drivers.kinematics import kp,ki
             self.kp     = kp
             self.ki     = ki
+            self.kff    = kff
+            self.bff    = bff
         else:
             self.kp     = 0.1
             self.ki     = 0.01
+            self.kff    = 0.1
+            self.bff    = 0.0
 
-        # self.omega_controller_left  = PI_controller(ki=self.ki,kp=self.kp)
-        # self.omega_controller_right = PI_controller(ki=self.ki,kp=self.kp)
-
-        self.omega_controller_left = FeedforwardPIController(kp=self.kp, ki=self.ki, kff=0.1, bff=0.0, integral_limit=1.0, output_limit=1.0)
-        self.omega_controller_right = FeedforwardPIController(kp=self.kp, ki=self.ki, kff=0.1, bff=0.0, integral_limit=1.0, output_limit=1.0)
+        self.omega_controller_left = FeedforwardPIController(kp=self.kp, ki=self.ki, kff=self.kff, bff=self.bff, integral_limit=1.0, output_limit=1.0)
+        self.omega_controller_right = FeedforwardPIController(kp=self.kp, ki=self.ki, kff=self.kff, bff=self.bff, integral_limit=1.0, output_limit=1.0)
 
         self.omega_left_ref     = 0
         self.omega_right_ref    = 0
@@ -275,11 +276,14 @@ class WheelDriverNode:
         self.trim = max(min(_trim, 0.1), -0.1)
         # rospy.loginfo(f"Received IMU data: {msg}, Updated trim: {self.trim}")
 
-    def dynamic_reconfigure_callback(self,config,level):
+    def dynamic_reconfigure_callback(self, config, level):
         self.kp = config.kp
         self.ki = config.ki
-        self.omega_controller_left.changeparam(kp=self.kp,ki=self.ki)
-        self.omega_controller_right.changeparam(kp=self.kp,ki=self.ki)
+        self.kff = config.kff
+        self.bff = config.bff
+        rospy.loginfo(f"Dynamic reconfigure callback: kp={self.kp}, ki={self.ki}, kff={self.kff}, bff={self.bff}")
+        self.omega_controller_left.changeparam(kp=self.kp, ki=self.ki, kff=self.kff, bff=self.bff)
+        self.omega_controller_right.changeparam(kp=self.kp, ki=self.ki, kff=self.kff, bff=self.bff)
         return config
     
 if __name__ == '__main__':
