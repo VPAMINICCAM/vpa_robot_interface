@@ -10,6 +10,7 @@ from vpa_robot_interface.msg import WheelsCmd,WheelsEncoder
 from vpa_robot_interface.cfg import omegaConfig
 
 from pid_controller.pi_format import PI_controller
+from pid_controller.feedforward_pi_format import FeedforwardPIController
 
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Bool
@@ -128,8 +129,11 @@ class WheelDriverNode:
             self.kp     = 0.1
             self.ki     = 0.01
 
-        self.omega_controller_left  = PI_controller(ki=self.ki,kp=self.kp)
-        self.omega_controller_right = PI_controller(ki=self.ki,kp=self.kp)
+        # self.omega_controller_left  = PI_controller(ki=self.ki,kp=self.kp)
+        # self.omega_controller_right = PI_controller(ki=self.ki,kp=self.kp)
+
+        self.omega_controller_left = FeedforwardPIController(kp=self.kp, ki=self.ki, kff=1.5, bff=0.0, integral_limit=1.0, output_limit=1.0)
+        self.omega_controller_right = FeedforwardPIController(kp=self.kp, ki=self.ki, kff=1.5, bff=0.0, integral_limit=1.0, output_limit=1.0)
 
         self.omega_left_ref     = 0
         self.omega_right_ref    = 0
@@ -236,33 +240,33 @@ class WheelDriverNode:
         self.omega_right_sig    = msg.omega_right
         #print('signal',self.omega_left_sig,self.omega_right_sig)
 
-        self.throttle_left      = self.omega_controller_left.pi_control(self.omega_left_ref,self.omega_left_sig)
-        self.throttle_right     = self.omega_controller_right.pi_control(self.omega_right_ref,self.omega_right_sig)
+        self.throttle_left      = self.omega_controller_left.update(self.omega_left_ref,self.omega_left_sig)
+        self.throttle_right     = self.omega_controller_right.update(self.omega_right_ref,self.omega_right_sig)
         # print('throttle', self.throttle_left, self.throttle_right)
         
-        if self.throttle_left > 1:
-            self.throttle_left = 1
-        elif self.throttle_left < -0.5:
-            self.throttle_left = -0.5
+        # if self.throttle_left > 1:
+        #     self.throttle_left = 1
+        # elif self.throttle_left < -0.5:
+        #     self.throttle_left = -0.5
 
-        if self.throttle_right > 1:
-            self.throttle_right = 1
-        elif self.throttle_right < -0.5:
-            self.throttle_right = -0.5
+        # if self.throttle_right > 1:
+        #     self.throttle_right = 1
+        # elif self.throttle_right < -0.5:
+        #     self.throttle_right = -0.5
         
         if self.omega_left_ref == 0:
             self.throttle_left = 0
-            self.omega_controller_left.reset_controller()
+            self.omega_controller_left.reset()
 
         if self.omega_right_ref == 0:
             self.throttle_right = 0
-            self.omega_controller_right.reset_controller()     
+            self.omega_controller_right.reset()     
         if not self.estop and not self.local_estop:
             self.driver.set_wheels_throttle(left=self.throttle_left,right=self.throttle_right)
         else:
             self.driver.set_wheels_throttle(left=0,right=0)
-            self.omega_controller_left.reset_controller()
-            self.omega_controller_right.reset_controller()
+            self.omega_controller_left.reset()
+            self.omega_controller_right.reset()
             
     def imu_cb(self, msg: Imu) -> None:
         """Callback function to handle IMU data."""
@@ -274,8 +278,8 @@ class WheelDriverNode:
     def dynamic_reconfigure_callback(self,config,level):
         self.kp = config.kp
         self.ki = config.ki
-        self.omega_controller_left.update_controller_param(self.kp,self.ki)
-        self.omega_controller_right.update_controller_param(self.kp,self.ki)
+        self.omega_controller_left.changeparam(kp=self.kp,ki=self.ki)
+        self.omega_controller_right.changeparam(kp=self.kp,ki=self.ki)
         return config
     
 if __name__ == '__main__':
