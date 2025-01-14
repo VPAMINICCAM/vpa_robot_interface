@@ -40,6 +40,9 @@ class FeedforwardPIController:
 
     def update(self, setpoint, measurement, dt):
         error = setpoint - measurement
+        delta_error = error - self.previous_error
+        self.previous_error = error
+        
         self.integral += error * dt
         
         # Anti-windup: Clamp the integral term
@@ -47,7 +50,7 @@ class FeedforwardPIController:
             self.integral = max(min(self.integral, self.integral_limit), -self.integral_limit)
         
         feedforward = self.kff * setpoint + self.bff
-        control_signal = self.kp * error + self.ki * self.integral + feedforward
+        control_signal = self.kp * delta_error + self.ki * self.integral + feedforward
         
         # Output saturation: Clamp the control signal
         if self.output_limit is not None:
