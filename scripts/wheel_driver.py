@@ -5,6 +5,7 @@ import socket
 from math import fabs, floor
 import os
 from dt_config.dt_hardware_settings import MotorDirection, HATv2
+import json
 
 from vpa_robot_interface.msg import WheelsCmd,WheelsEncoder
 from vpa_robot_interface.cfg import omegaConfig
@@ -120,6 +121,8 @@ class WheelDriverNode:
         self.driver = WheelDriver()
         script_dir = os.path.dirname(os.path.abspath(__file__))
         filepath = os.path.join(script_dir,'adafruit_drivers/kinematics.py')
+        self.log_dir = os.path.join(script_dir, 'logs')
+        os.makedirs(self.log_dir, exist_ok=True)
         if os.path.exists(filepath):
             rospy.loginfo("%s: load customize tuning",self.veh_name)
             from adafruit_drivers.kinematics import kp,ki
@@ -185,7 +188,8 @@ class WheelDriverNode:
             self.sub_imu = rospy.Subscriber("imu", Imu, self.imu_cb)
         # self.pub_wheel_dir = rospy.Publisher('wheel_direction')
         
-        self.srv = Server(omegaConfig,self.dynamic_reconfigure_callback)
+        self.srv_left = Server(omegaConfig, self.dynamic_reconfigure_callback_left, namespace='left_wheel')
+        self.srv_right = Server(omegaConfig, self.dynamic_reconfigure_callback_right, namespace='right_wheel')
         rospy.loginfo("%s: wheel drivers ready",self.veh_name)
         
     def signal_shut(self,msg:Bool):
@@ -276,16 +280,32 @@ class WheelDriverNode:
         self.trim = max(min(_trim, 0.1), -0.1)
         # rospy.loginfo(f"Received IMU data: {msg}, Updated trim: {self.trim}")
 
-    def dynamic_reconfigure_callback(self, config, level):
-        self.kp = config.kp
-        self.ki = config.ki
-        self.kff = config.kff
-        self.bff = config.bff
-        rospy.loginfo(f"Dynamic reconfigure callback: kp={self.kp}, ki={self.ki}, kff={self.kff}, bff={self.bff}")
-        self.omega_controller_left.changeparam(kp=self.kp, ki=self.ki, kff=self.kff, bff=self.bff)
-        self.omega_controller_right.changeparam(kp=self.kp, ki=self.ki, kff=self.kff, bff=self.bff)
+    def dynamic_reconfigure_callback_left(self, config, level):
+        self.kp_left = config.kp
+        self.ki_left = config.ki
+        self.kff_left = config.kff
+        self.bff_left = config.bff
+        rospy.loginfo(f"Dynamic reconfigure callback (left wheel): kp={self.kp_left}, ki={self.ki_left}, kff={self.kff_left}, bff={self.bff_left}")
+        self.omega_controller_left.changeparam(kp=self.kp_left, ki=self.ki_left, kff=self.kff_left, bff=self.bff_left)
+        self._log_settings('left_wheel', config)
         return config
-    
+
+    def dynamic_reconfigure_callback_right(self, config, level):
+        self.kp_right = config.kp
+        self.ki_right = config.ki
+        self.kff_right = config.kff
+        self.bff_right = config.bff
+        rospy.loginfo(f"Dynamic reconfigure callback (right wheel): kp={self.kp_right}, ki={self.ki_right}, kff={self.kff_right}, bff={self.bff_right}")
+        self.omega_controller_right.changeparam(kp=self.kp_right, ki=self.ki_right, kff=self.kff_right, bff=self.bff_right)
+        self._log_settings('right_wheel', config)
+        return config
+
+    def _log_settings(self, wheel, config):
+        log_file = os.path.join(self.log_dir, f'{wheel}_settings.json')
+        with open(log_file, 'w') as f:
+            json.dump(config, f, indent=4)
+        rospy.loginfo(f"Settings for {wheel} logged to {log_file}")
+
 if __name__ == '__main__':
 
     try:
