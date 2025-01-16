@@ -104,7 +104,10 @@ class WheelDriver:
         del self.hat
     
 class WheelDriverNode:
-
+    DEFAULT_KP = 0.04
+    DEFAULT_KI = 0.03
+    DEFAULT_KFF = 0.038
+    DEFAULT_BFF = 0
 
     def __init__(self) -> None:
 
@@ -122,21 +125,11 @@ class WheelDriverNode:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         filepath = os.path.join(script_dir,'adafruit_drivers/kinematics.py')
         self.log_dir = os.path.join(script_dir, 'logs')
-        os.makedirs(self.log_dir, exist_ok=True)
-        if os.path.exists(filepath):
-            rospy.loginfo("%s: load customize tuning",self.veh_name)
-            from adafruit_drivers.kinematics import kp,ki
-            self.kp     = kp
-            self.ki     = ki
-            self.kff    = kff
-            self.bff    = bff
-        else:
-            self.kp     = 0.1
-            self.ki     = 0.01
-            self.kff    = 0.1
-            self.bff    = 0.0
 
+        self.kp, self.ki, self.kff, self.bff = self._read_settings('left_wheel')
         self.omega_controller_left = FeedforwardPIController(kp=self.kp, ki=self.ki, kff=self.kff, bff=self.bff, integral_limit=30, output_limit=1.0)
+        
+        self.kp, self.ki, self.kff, self.bff = self._read_settings('right_wheel')
         self.omega_controller_right = FeedforwardPIController(kp=self.kp, ki=self.ki, kff=self.kff, bff=self.bff, integral_limit=30, output_limit=1.0)
 
         self.omega_left_ref     = 0
@@ -307,6 +300,24 @@ class WheelDriverNode:
         with open(log_file, 'w') as f:
             json.dump(config, f, indent=4)
         rospy.loginfo(f"Settings for {wheel} logged to {log_file}")
+
+    def _read_settings(self, wheel):
+        log_file = os.path.join(self.log_dir, f'{wheel}_settings.json')
+        if os.path.exists(log_file):
+            with open(log_file, 'r') as f:
+                config = json.load(f)
+                kp = config.get('kp', self.DEFAULT_KP)
+                ki = config.get('ki', self.DEFAULT_KI)
+                kff = config.get('kff', self.DEFAULT_KFF)
+                bff = config.get('bff', self.DEFAULT_BFF)
+                rospy.loginfo(f"Settings for {wheel} read from {log_file}")
+        else:
+            kp = self.DEFAULT_KP
+            ki = self.DEFAULT_KI
+            kff = self.DEFAULT_KFF
+            bff = self.DEFAULT_BFF
+            rospy.loginfo(f"Default settings applied for {wheel}")
+        return kp, ki, kff, bff
 
 if __name__ == '__main__':
 
