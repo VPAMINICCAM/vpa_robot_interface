@@ -184,6 +184,9 @@ class WheelDriverNode:
         self.srv_left = Server(omegaConfig, self.dynamic_reconfigure_callback_left, namespace='left_wheel')
         self.srv_right = Server(omegaConfig, self.dynamic_reconfigure_callback_right, namespace='right_wheel')
         rospy.loginfo("%s: wheel drivers ready",self.veh_name)
+
+        self.yaw_pid = PI_controller(kp=0.1, ki=0.01)
+        self.yaw_trim = 0.0
         
     def signal_shut(self,msg:Bool):
         if msg.data:
@@ -200,6 +203,23 @@ class WheelDriverNode:
                 self.omega_right_ref    = ((msg_car_cmd.linear.x + 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) 
                 self.omega_left_ref     = ((msg_car_cmd.linear.x - 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) 
         
+        # Calculate the current yaw rate from wheel speeds
+        current_yaw_rate = (self.omega_right_sig - self.omega_left_sig) * self._radius / self._baseline
+
+        # Update the yaw PID controller
+        self.yaw_trim = self.yaw_pid.pi_control(self.yaw_setpoint, current_yaw_rate)
+
+        # Restrict yaw_trim to ±0.2
+        self.yaw_trim = max(min(self.yaw_trim, 0.2), -0.2)
+
+        # Apply the yaw trim to the throttle
+        self.throttle_left -= self.yaw_trim
+        self.throttle_right += self.yaw_trim
+
+        # Ensure throttle values are within bounds
+        self.throttle_left = max(min(self.throttle_left, 1.0), -1.0)
+        self.throttle_right = max(min(self.throttle_right, 1.0), -1.0)
+
         #print('ref',self.omega_left_ref,self.omega_right_ref)
         msg_wheel_cmd = WheelsCmd()
         msg_wheel_cmd.vel_left  = self.omega_left_ref
@@ -267,6 +287,23 @@ class WheelDriverNode:
             self.driver.set_wheels_throttle(left=0,right=0)
             self.omega_controller_left.reset()
             self.omega_controller_right.reset()
+
+        # Calculate the current yaw rate from wheel speeds
+        current_yaw_rate = (self.omega_right_sig - self.omega_left_sig) * self._radius / self._baseline
+
+        # Update the yaw PID controller
+        self.yaw_trim = self.yaw_pid.pi_control(self.yaw_setpoint, current_yaw_rate)
+
+        # Restrict yaw_trim to ±0.2
+        self.yaw_trim = max(min(self.yaw_trim, 0.2), -0.2)
+
+        # Apply the yaw trim to the throttle
+        self.throttle_left -= self.yaw_trim
+        self.throttle_right += self.yaw_trim
+
+        # Ensure throttle values are within bounds
+        self.throttle_left = max(min(self.throttle_left, 1.0), -1.0)
+        self.throttle_right = max(min(self.throttle_right, 1.0), -1.0)
             
     def imu_cb(self, msg: Imu) -> None:
         """Callback function to handle IMU data."""
