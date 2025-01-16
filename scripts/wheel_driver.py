@@ -149,14 +149,10 @@ class WheelDriverNode:
         self._radius    = 0.0318    # radius of wheels
 
         # Global brake
-        
 
-        if os.path.exists(filepath):
-            from adafruit_drivers.kinematics import trim
-            self.trim = trim
-        else:
-            self.trim = 0
-            
+        self.yaw_pid = PI_controller(kp=0.5, ki=0)
+        self.yaw_trim = 0.0
+        
         self.estop         = True
         rospy.loginfo("%s: global brake activated",self.veh_name)
         self.local_estop   = True
@@ -176,7 +172,7 @@ class WheelDriverNode:
         self.dyna_trim = rospy.get_param('~dyna_trim', False)
         self.yaw_setpoint = 0.0
         self.yaw_measure = 0.0
-        self.trim_pid = PI_controller(kp=0.1, ki=0.01)
+        # self.trim_pid = PI_controller(kp=0.1, ki=0.01)
         if self.dyna_trim:
             self.sub_imu = rospy.Subscriber("imu", Imu, self.imu_cb)
         # self.pub_wheel_dir = rospy.Publisher('wheel_direction')
@@ -185,8 +181,7 @@ class WheelDriverNode:
         self.srv_right = Server(omegaConfig, self.dynamic_reconfigure_callback_right, namespace='right_wheel')
         rospy.loginfo("%s: wheel drivers ready",self.veh_name)
 
-        self.yaw_pid = PI_controller(kp=0.1, ki=0.01)
-        self.yaw_trim = 0.0
+
         
     def signal_shut(self,msg:Bool):
         if msg.data:
