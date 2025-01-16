@@ -136,8 +136,8 @@ class WheelDriverNode:
             self.kff    = 0.1
             self.bff    = 0.0
 
-        self.omega_controller_left = FeedforwardPIController(kp=self.kp, ki=self.ki, kff=self.kff, bff=self.bff, integral_limit=1.0, output_limit=1.0)
-        self.omega_controller_right = FeedforwardPIController(kp=self.kp, ki=self.ki, kff=self.kff, bff=self.bff, integral_limit=1.0, output_limit=1.0)
+        self.omega_controller_left = FeedforwardPIController(kp=self.kp, ki=self.ki, kff=self.kff, bff=self.bff, integral_limit=30, output_limit=1.0)
+        self.omega_controller_right = FeedforwardPIController(kp=self.kp, ki=self.ki, kff=self.kff, bff=self.bff, integral_limit=30, output_limit=1.0)
 
         self.omega_left_ref     = 0
         self.omega_right_ref    = 0
@@ -204,13 +204,15 @@ class WheelDriverNode:
         self.omega_left_ref     = 0
         if not self.estop:
             if msg_car_cmd.linear.x != 0:
-                self.omega_right_ref    = ((msg_car_cmd.linear.x + 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) * (1 + self.trim)
-                self.omega_left_ref     = ((msg_car_cmd.linear.x - 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) * (1 - self.trim)
+                self.omega_right_ref    = ((msg_car_cmd.linear.x + 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) 
+                self.omega_left_ref     = ((msg_car_cmd.linear.x - 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) 
         
         #print('ref',self.omega_left_ref,self.omega_right_ref)
         msg_wheel_cmd = WheelsCmd()
         msg_wheel_cmd.vel_left  = self.omega_left_ref
         msg_wheel_cmd.vel_right = self.omega_right_ref
+        msg_wheel_cmd.throttle_left = self.throttle_left
+        msg_wheel_cmd.throttle_right = self.throttle_right
         self.pub_wheel_debug.publish(msg_wheel_cmd)
 
     def estop_cb(self,msg:Bool) -> None:
