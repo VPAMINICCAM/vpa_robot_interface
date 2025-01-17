@@ -13,8 +13,8 @@ class PI_controller:
         self.last_error = 0
         self.last_output     = 0
 
-    def pi_control(self, ref, sig) -> float:
-        if ref == 0:
+    def pi_control(self, ref, sig, turn_off_zero_ref:bool) -> float:
+        if ref == 0 and turn_off_zero_ref:
             self.reset_controller()
             return 0
         
