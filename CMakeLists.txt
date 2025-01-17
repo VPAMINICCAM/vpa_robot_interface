@@ -93,6 +93,7 @@ generate_messages(
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
 generate_dynamic_reconfigure_options(
   config/omega.cfg
+  config/yaw.cfg
   # cfg/DynReconf1.cfg
   # cfg/DynReconf2.cfg
 )

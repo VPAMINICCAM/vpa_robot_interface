@@ -8,7 +8,7 @@ from dt_config.dt_hardware_settings import MotorDirection, HATv2
 import json
 
 from vpa_robot_interface.msg import WheelsCmd,WheelsEncoder
-from vpa_robot_interface.cfg import omegaConfig
+from vpa_robot_interface.cfg import omegaConfig, yawConfig
 
 from pid_controller.pi_format import PI_controller
 from pid_controller.feedforward_pi_format import FeedforwardPIController
@@ -150,8 +150,10 @@ class WheelDriverNode:
 
         # Global brake
 
-        self.yaw_pid = PI_controller(kp=0.5, ki=0)
+        self.yaw_pid = PI_controller(kp=0.5, ki=0.05)
         self.yaw_trim = 0.0
+        self.yaw_setpoint = 0.0
+        self.yaw = 0.0
         
         self.estop         = True
         rospy.loginfo("%s: global brake activated",self.veh_name)
@@ -170,8 +172,8 @@ class WheelDriverNode:
         self.pub_wheel_debug = rospy.Publisher('wheel_ref',WheelsCmd,queue_size=1)
         rospy.Subscriber("robot_interface_shutdown", Bool, self.signal_shut)
         self.dyna_trim = rospy.get_param('~dyna_trim', False)
-        self.yaw_setpoint = 0.0
-        self.yaw_measure = 0.0
+        
+
         # self.trim_pid = PI_controller(kp=0.1, ki=0.01)
         if self.dyna_trim:
             self.sub_imu = rospy.Subscriber("imu", Imu, self.imu_cb)
@@ -179,6 +181,7 @@ class WheelDriverNode:
         
         self.srv_left = Server(omegaConfig, self.dynamic_reconfigure_callback_left, namespace='left_wheel')
         self.srv_right = Server(omegaConfig, self.dynamic_reconfigure_callback_right, namespace='right_wheel')
+        self.srv_yaw = Server(yawConfig, self.dynamic_reconfigure_callback_yaw, namespace='yaw_pid')
         rospy.loginfo("%s: wheel drivers ready",self.veh_name)
 
 
@@ -198,22 +201,6 @@ class WheelDriverNode:
                 self.omega_right_ref    = ((msg_car_cmd.linear.x + 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) 
                 self.omega_left_ref     = ((msg_car_cmd.linear.x - 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) 
         
-        # Calculate the current yaw rate from wheel speeds
-        current_yaw_rate = (self.omega_right_sig - self.omega_left_sig) * self._radius / self._baseline
-
-        # Update the yaw PID controller
-        self.yaw_trim = self.yaw_pid.pi_control(self.yaw_setpoint, current_yaw_rate)
-
-        # Restrict yaw_trim to ±0.2
-        self.yaw_trim = max(min(self.yaw_trim, 0.2), -0.2)
-
-        # Apply the yaw trim to the throttle
-        self.throttle_left -= self.yaw_trim
-        self.throttle_right += self.yaw_trim
-
-        # Ensure throttle values are within bounds
-        self.throttle_left = max(min(self.throttle_left, 1.0), -1.0)
-        self.throttle_right = max(min(self.throttle_right, 1.0), -1.0)
 
         #print('ref',self.omega_left_ref,self.omega_right_ref)
         msg_wheel_cmd = WheelsCmd()
@@ -283,14 +270,21 @@ class WheelDriverNode:
             self.omega_controller_left.reset()
             self.omega_controller_right.reset()
 
+        if self.omega_left_ref <=0 or self.omega_right_ref <=0:
+            self.yaw_trim = 0
+            self.yaw_pid.reset_controller()
+
         # Calculate the current yaw rate from wheel speeds
         current_yaw_rate = (self.omega_right_sig - self.omega_left_sig) * self._radius / self._baseline
-
+        self.yaw += current_yaw_rate * 1/20
         # Update the yaw PID controller
-        self.yaw_trim = self.yaw_pid.pi_control(self.yaw_setpoint, current_yaw_rate)
+        self.yaw_trim = self.yaw_pid.pi_control(self.yaw_setpoint, current_yaw_rate,False)
 
         # Restrict yaw_trim to ±0.2
-        self.yaw_trim = max(min(self.yaw_trim, 0.2), -0.2)
+        self.yaw_trim = max(min(self.yaw_trim, 0.4), -0.4)
+        if self.yaw_trim != 0:
+            _output = self.yaw_pid.return_debug()
+            print('yaw',self.yaw,'trim',self.yaw_trim,'output',_output)
 
         # Apply the yaw trim to the throttle
         self.throttle_left -= self.yaw_trim
@@ -303,8 +297,6 @@ class WheelDriverNode:
     def imu_cb(self, msg: Imu) -> None:
         """Callback function to handle IMU data."""
         self.yaw_measure = msg.angular_velocity.z
-        _trim = self.trim_pid.pi_control(self.yaw_setpoint, self.yaw_measure)
-        self.trim = max(min(_trim, 0.1), -0.1)
         # rospy.loginfo(f"Received IMU data: {msg}, Updated trim: {self.trim}")
 
     def dynamic_reconfigure_callback_left(self, config, level):
@@ -325,6 +317,13 @@ class WheelDriverNode:
         rospy.loginfo(f"Dynamic reconfigure callback (right wheel): kp={self.kp_right}, ki={self.ki_right}, kff={self.kff_right}, bff={self.bff_right}")
         self.omega_controller_right.changeparam(kp=self.kp_right, ki=self.ki_right, kff=self.kff_right, bff=self.bff_right)
         self._log_settings('right_wheel', config)
+        return config
+
+    def dynamic_reconfigure_callback_yaw(self, config, level):
+        self.kp_yaw = config.kp_yaw
+        self.ki_yaw = config.ki_yaw
+        rospy.loginfo(f"Dynamic reconfigure callback (yaw PID): kp_yaw={self.kp_yaw}, ki_yaw={self.ki_yaw}")
+        self.yaw_pid.update_controller_param(kp=self.kp_yaw, ki=self.ki_yaw)
         return config
 
     def _log_settings(self, wheel, config):
