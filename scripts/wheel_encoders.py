@@ -141,7 +141,8 @@ class WheelEncodersNode:
                 _omega = (-2*pi/self._resolution)/delat_t
                 if abs(_omega) > 20:
                     _omega = -20
-
+            else:
+                _omega = 0
            
             if len(self.omega_window_left) < self.window_length:
                 self.omega_window_left.append(_omega)
@@ -171,7 +172,8 @@ class WheelEncodersNode:
                 _omega = (-2*pi/self._resolution)/delat_t
                 if abs(_omega) > 20:
                     _omega = -20
-            
+            else:
+                _omega = 0
             
             if len(self.omega_window_right) < self.window_length:
                 self.omega_window_right.append(_omega)
