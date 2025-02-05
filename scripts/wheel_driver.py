@@ -242,8 +242,28 @@ class WheelDriverNode:
         self.omega_right_sig    = msg.omega_right
         #print('signal',self.omega_left_sig,self.omega_right_sig)
 
-        self.throttle_left      = self.omega_controller_left.update(self.omega_left_ref,self.omega_left_sig,1/20)
-        self.throttle_right     = self.omega_controller_right.update(self.omega_right_ref,self.omega_right_sig,1/20)
+        # Calculate the current yaw rate from wheel speeds
+        current_yaw_rate = (self.omega_right_sig - self.omega_left_sig) * self._radius / self._baseline
+        self.yaw += current_yaw_rate * 1/20
+        # Update the yaw PID controller
+        self.yaw_trim = self.yaw_pid.pi_control(self.yaw_setpoint, current_yaw_rate,False)
+        if self.omega_left_ref <=0 or self.omega_right_ref <=0:
+            self.yaw_trim = 0
+            self.yaw_pid.reset_controller()
+            self.yaw = 0
+        # Restrict yaw_trim to ±0.2
+        self.yaw_trim = max(min(self.yaw_trim, 1), -1)
+        if self.yaw_trim != 0:
+            _output = self.yaw_pid.return_debug()
+            print('yaw',self.yaw,'trim',self.yaw_trim,'output',_output)
+
+        self.throttle_left      = self.omega_controller_left.update(self.omega_left_ref*(1-self.yaw_trim),self.omega_left_sig,1/20)
+        self.throttle_right     = self.omega_controller_right.update(self.omega_right_ref*(1+self.yaw_trim),self.omega_right_sig,1/20)
+
+        if self.omega_left_sig <= 0.15/(self._radius):
+            self.throttle_left <= 0.5 # anti-sliding
+        if self.omega_right_sig <= 0.15/(self._radius):
+            self.throttle_right <= 0.5
         # print('throttle', self.throttle_left, self.throttle_right)
         
         # if self.throttle_left > 1:
@@ -269,22 +289,6 @@ class WheelDriverNode:
             self.driver.set_wheels_throttle(left=0,right=0)
             self.omega_controller_left.reset()
             self.omega_controller_right.reset()
-
-        if self.omega_left_ref <=0 or self.omega_right_ref <=0:
-            self.yaw_trim = 0
-            self.yaw_pid.reset_controller()
-
-        # Calculate the current yaw rate from wheel speeds
-        current_yaw_rate = (self.omega_right_sig - self.omega_left_sig) * self._radius / self._baseline
-        self.yaw += current_yaw_rate * 1/20
-        # Update the yaw PID controller
-        self.yaw_trim = self.yaw_pid.pi_control(self.yaw_setpoint, current_yaw_rate,False)
-
-        # Restrict yaw_trim to ±0.2
-        self.yaw_trim = max(min(self.yaw_trim, 0.4), -0.4)
-        if self.yaw_trim != 0:
-            _output = self.yaw_pid.return_debug()
-            print('yaw',self.yaw,'trim',self.yaw_trim,'output',_output)
 
         # Apply the yaw trim to the throttle
         self.throttle_left -= self.yaw_trim
