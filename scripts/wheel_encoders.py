@@ -134,13 +134,13 @@ class WheelEncodersNode:
             self._last_tick_timing_left = now
             if self._tick_left > self._tick_left_last:
                 _omega = (2*pi/self._resolution)/delat_t
-                if abs(_omega) > 30:
-                    _omega = 30
+                if abs(_omega) > 40:
+                    _omega = 40
                 self.stop_counter_left = 0
             elif self._tick_left < self._tick_left_last:
                 _omega = (-2*pi/self._resolution)/delat_t
-                if abs(_omega) > 20:
-                    _omega = -20
+                if abs(_omega) > 40:
+                    _omega = -40
             else:
                 _omega = 0
            
@@ -166,12 +166,12 @@ class WheelEncodersNode:
             self._last_tick_timing_right = now
             if self._tick_right > self._tick_right_last:
                 _omega = (2*pi/self._resolution)/delat_t
-                if abs(_omega) > 20:
-                    _omega = 20
+                if abs(_omega) > 40:
+                    _omega = 40
             elif self._tick_right < self._tick_right_last:
                 _omega = (-2*pi/self._resolution)/delat_t
-                if abs(_omega) > 20:
-                    _omega = -20
+                if abs(_omega) > 40:
+                    _omega = -40
             else:
                 _omega = 0
             

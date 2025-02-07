@@ -11,7 +11,9 @@ from vpa_robot_interface.msg import WheelsCmd,WheelsEncoder
 from vpa_robot_interface.cfg import omegaConfig, yawConfig
 
 from pid_controller.pi_format import PI_controller
-from pid_controller.feedforward_pi_format import FeedforwardPIController
+# from pid_controller.feedforward_pi_format import FeedforwardPIController
+from pid_controller.complete_pid import CompletePIDController as WheelSpeedController
+
 
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Bool
@@ -104,9 +106,10 @@ class WheelDriver:
         del self.hat
     
 class WheelDriverNode:
-    DEFAULT_KP = 0.04
-    DEFAULT_KI = 0.03
-    DEFAULT_KFF = 0.038
+    DEFAULT_KP = 0.07
+    DEFAULT_KI = 0.15
+    DEFAULT_KD = 0.008
+    DEFAULT_KFF = 0.03
     DEFAULT_BFF = 0
 
     def __init__(self) -> None:
@@ -123,14 +126,15 @@ class WheelDriverNode:
 
         self.driver = WheelDriver()
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        filepath = os.path.join(script_dir,'adafruit_drivers/kinematics.py')
+        # filepath = os.path.join(script_dir,'adafruit_drivers/kinematics.py')
         self.log_dir = os.path.join(script_dir, 'logs')
 
-        self.kp, self.ki, self.kff, self.bff = self._read_settings('left_wheel')
-        self.omega_controller_left = FeedforwardPIController(kp=self.kp, ki=self.ki, kff=self.kff, bff=self.bff, integral_limit=30, output_limit=1.0)
-        
-        self.kp, self.ki, self.kff, self.bff = self._read_settings('right_wheel')
-        self.omega_controller_right = FeedforwardPIController(kp=self.kp, ki=self.ki, kff=self.kff, bff=self.bff, integral_limit=30, output_limit=1.0)
+        kp, ki, kff, bff, kd = self._read_settings('left_wheel')
+        self.omega_controller_left = WheelSpeedController(kp=kp, ki=ki, kff=kff, bff=bff,kd=kd,I_min=-30,I_max=30, u_min=-1.0, u_max=1.0, deriv_filter_coeff=10,Ts=1/20)
+        rospy.loginfo(f"Left wheel controller parameters: kp={kp}, ki={ki}, kd={kd}, kff={kff}, bff={bff}")
+        kp, ki, kff, bff, kd = self._read_settings('right_wheel')
+        self.omega_controller_right = WheelSpeedController(kp=kp, ki=ki, kff=kff, bff=bff, kd=kd, I_min=-30,I_max=30, u_min=-1.0, u_max=1.0, deriv_filter_coeff=10,Ts=1/20)
+        rospy.loginfo(f"Right wheel controller parameters: kp={kp}, ki={ki}, kd={kd}, kff={kff}, bff={bff}")
 
         self.omega_left_ref     = 0
         self.omega_right_ref    = 0
@@ -182,6 +186,14 @@ class WheelDriverNode:
         self.srv_left = Server(omegaConfig, self.dynamic_reconfigure_callback_left, namespace='left_wheel')
         self.srv_right = Server(omegaConfig, self.dynamic_reconfigure_callback_right, namespace='right_wheel')
         self.srv_yaw = Server(yawConfig, self.dynamic_reconfigure_callback_yaw, namespace='yaw_pid')
+        # Read settings from file and overwrite the initial parameters
+        kp, ki, kff, bff, kd = self._read_settings('left_wheel')
+        self.omega_controller_left.change_param(kp=kp, ki=ki, kff=kff, bff=bff, kd=kd)
+        rospy.loginfo(f"Left wheel controller parameters updated from file: kp={kp}, ki={ki}, kd={kd}, kff={kff}, bff={bff}")
+
+        kp, ki, kff, bff, kd = self._read_settings('right_wheel')
+        self.omega_controller_right.change_param(kp=kp, ki=ki, kff=kff, bff=bff, kd=kd)
+        rospy.loginfo(f"Right wheel controller parameters updated from file: kp={kp}, ki={ki}, kd={kd}, kff={kff}, bff={bff}")
         rospy.loginfo("%s: wheel drivers ready",self.veh_name)
 
 
@@ -198,8 +210,9 @@ class WheelDriverNode:
         self.omega_left_ref     = 0
         if not self.estop:
             if msg_car_cmd.linear.x != 0:
-                self.omega_right_ref    = ((msg_car_cmd.linear.x + 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) 
-                self.omega_left_ref     = ((msg_car_cmd.linear.x - 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) 
+                self.omega_right_ref    = ((msg_car_cmd.linear.x + 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) * (1 + self.yaw_trim)
+                self.omega_left_ref     = ((msg_car_cmd.linear.x - 0.5 * msg_car_cmd.angular.z * self._baseline) / self._radius) * (1 - self.yaw_trim)
+                
         
 
         #print('ref',self.omega_left_ref,self.omega_right_ref)
@@ -251,48 +264,39 @@ class WheelDriverNode:
             self.yaw_trim = 0
             self.yaw_pid.reset_controller()
             self.yaw = 0
-        # Restrict yaw_trim to ±0.2
-        self.yaw_trim = max(min(self.yaw_trim, 1), -1)
-        if self.yaw_trim != 0:
-            _output = self.yaw_pid.return_debug()
-            print('yaw',self.yaw,'trim',self.yaw_trim,'output',_output)
+        # Restrict yaw_trim 
+        self.yaw_trim = max(min(self.yaw_trim, 0.4), -0.4)
+        # if self.yaw_trim != 0:
+        #     _output = self.yaw_pid.return_debug()
+        #     print('yaw',self.yaw,'trim',self.yaw_trim,'output',_output)
+        if self.omega_left_ref > 0:
+            self.throttle_left      = self.omega_controller_left.update(setpoint=self.omega_left_ref,measured_speed=self.omega_left_sig,compensate=True)
+        else:
+            self.throttle_left      = self.omega_controller_left.update(setpoint=self.omega_left_ref,measured_speed=self.omega_left_sig)
 
-        self.throttle_left      = self.omega_controller_left.update(self.omega_left_ref*(1-self.yaw_trim),self.omega_left_sig,1/20)
-        self.throttle_right     = self.omega_controller_right.update(self.omega_right_ref*(1+self.yaw_trim),self.omega_right_sig,1/20)
+        # if self.omega_right_ref < 0:
+        #     self.throttle_right     = self.omega_controller_right.update(setpoint=self.omega_right_ref,measured_speed=self.omega_right_sig,compensate=True)
+        # else:
+        #     self.throttle_right     = self.omega_controller_right.update(setpoint=self.omega_right_ref,measured_speed=self.omega_right_sig)
 
-        if self.omega_left_sig <= 0.15/(self._radius):
-            self.throttle_left <= 0.5 # anti-sliding
-        if self.omega_right_sig <= 0.15/(self._radius):
-            self.throttle_right <= 0.5
-        # print('throttle', self.throttle_left, self.throttle_right)
-        
-        # if self.throttle_left > 1:
-        #     self.throttle_left = 1
-        # elif self.throttle_left < -0.5:
-        #     self.throttle_left = -0.5
+        if self.omega_left_sig <= 0.1/(self._radius) and self.throttle_left > 0.6:
+            self.throttle_left = 0.6 # anti-sliding
+        if self.omega_right_sig <= 0.1/(self._radius) and self.throttle_right > 0.6:
+            self.throttle_right = 0.6
 
-        # if self.throttle_right > 1:
-        #     self.throttle_right = 1
-        # elif self.throttle_right < -0.5:
-        #     self.throttle_right = -0.5
-        
         if self.omega_left_ref == 0:
             self.throttle_left = 0
             self.omega_controller_left.reset()
 
         if self.omega_right_ref == 0:
             self.throttle_right = 0
-            self.omega_controller_right.reset()     
+            self.omega_controller_right.reset() 
         if not self.estop and not self.local_estop:
             self.driver.set_wheels_throttle(left=self.throttle_left,right=self.throttle_right)
         else:
             self.driver.set_wheels_throttle(left=0,right=0)
             self.omega_controller_left.reset()
             self.omega_controller_right.reset()
-
-        # Apply the yaw trim to the throttle
-        self.throttle_left -= self.yaw_trim
-        self.throttle_right += self.yaw_trim
 
         # Ensure throttle values are within bounds
         self.throttle_left = max(min(self.throttle_left, 1.0), -1.0)
@@ -306,20 +310,24 @@ class WheelDriverNode:
     def dynamic_reconfigure_callback_left(self, config, level):
         self.kp_left = config.kp
         self.ki_left = config.ki
+        self.kd_left = config.kd
         self.kff_left = config.kff
         self.bff_left = config.bff
-        rospy.loginfo(f"Dynamic reconfigure callback (left wheel): kp={self.kp_left}, ki={self.ki_left}, kff={self.kff_left}, bff={self.bff_left}")
-        self.omega_controller_left.changeparam(kp=self.kp_left, ki=self.ki_left, kff=self.kff_left, bff=self.bff_left)
+        N = config.N
+        rospy.loginfo(f"Dynamic reconfigure callback (left wheel): kp={self.kp_left}, ki={self.ki_left},kd={self.kd_left}, kff={self.kff_left}, bff={self.bff_left}, N={N}")
+        self.omega_controller_left.change_param(kp=self.kp_left, ki=self.ki_left, kff=self.kff_left, bff=self.bff_left,kd=self.kd_left,deriv_filter_coeff=N)
         self._log_settings('left_wheel', config)
         return config
 
     def dynamic_reconfigure_callback_right(self, config, level):
         self.kp_right = config.kp
         self.ki_right = config.ki
+        self.kd_right = config.kd
         self.kff_right = config.kff
         self.bff_right = config.bff
-        rospy.loginfo(f"Dynamic reconfigure callback (right wheel): kp={self.kp_right}, ki={self.ki_right}, kff={self.kff_right}, bff={self.bff_right}")
-        self.omega_controller_right.changeparam(kp=self.kp_right, ki=self.ki_right, kff=self.kff_right, bff=self.bff_right)
+        N = config.N
+        rospy.loginfo(f"Dynamic reconfigure callback (right wheel): kp={self.kp_right}, ki={self.ki_right},kd={self.kd_right}, kff={self.kff_right}, bff={self.bff_right}, N={N}")
+        self.omega_controller_right.change_param(kp=self.kp_right, ki=self.ki_right, kff=self.kff_right, bff=self.bff_right,kd=self.kd_right,deriv_filter_coeff=N)
         self._log_settings('right_wheel', config)
         return config
 
@@ -343,16 +351,18 @@ class WheelDriverNode:
                 config = json.load(f)
                 kp = config.get('kp', self.DEFAULT_KP)
                 ki = config.get('ki', self.DEFAULT_KI)
+                kd = config.get('kd', self.DEFAULT_KD)
                 kff = config.get('kff', self.DEFAULT_KFF)
                 bff = config.get('bff', self.DEFAULT_BFF)
                 rospy.loginfo(f"Settings for {wheel} read from {log_file}")
         else:
             kp = self.DEFAULT_KP
             ki = self.DEFAULT_KI
+            kd = self.DEFAULT_KD
             kff = self.DEFAULT_KFF
             bff = self.DEFAULT_BFF
             rospy.loginfo(f"Default settings applied for {wheel}")
-        return kp, ki, kff, bff
+        return kp, ki, kd, kff, bff
 
 if __name__ == '__main__':
 
