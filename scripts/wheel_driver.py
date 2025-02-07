@@ -205,7 +205,7 @@ class WheelDriverNode:
     def car_cmd_cb(self,msg_car_cmd:Twist) -> None:
         msg_car_cmd.linear.x    = max(min(msg_car_cmd.linear.x,self._v_max),-self._v_max)
         msg_car_cmd.angular.z   = max(min(msg_car_cmd.angular.z,self._omega_max),-self._omega_max)
-        self.yaw_setpoint = -msg_car_cmd.angular.z  # Negate the yaw setpoint
+        self.yaw_setpoint = msg_car_cmd.angular.z  # Negate the yaw setpoint
         self.omega_right_ref    = 0
         self.omega_left_ref     = 0
         if not self.estop:
@@ -259,16 +259,20 @@ class WheelDriverNode:
         current_yaw_rate = (self.omega_right_sig - self.omega_left_sig) * self._radius / self._baseline
         self.yaw += current_yaw_rate * 1/20
         # Update the yaw PID controller
-        self.yaw_trim = self.yaw_pid.pi_control(self.yaw_setpoint, current_yaw_rate,False)
+        
         if self.omega_left_ref <=0 or self.omega_right_ref <=0:
             self.yaw_trim = 0
             self.yaw_pid.reset_controller()
             self.yaw = 0
+        else:
+            yaw_trim = self.yaw_pid.pi_control(self.yaw_setpoint, current_yaw_rate,False)
+            self.yaw_trim = max(min(yaw_trim, 0.4), -0.4)
         # Restrict yaw_trim 
-        self.yaw_trim = max(min(self.yaw_trim, 0.4), -0.4)
-        # if self.yaw_trim != 0:
-        #     _output = self.yaw_pid.return_debug()
-        #     print('yaw',self.yaw,'trim',self.yaw_trim,'output',_output)
+        
+        # if self.omega_left_ref > 0 and self.omega_right_ref > 0:
+        #     print('yaw_trim',self.yaw_trim,current_yaw_rate,self.yaw_setpoint)
+
+        # Calculate the new wheel speeds
         if self.omega_left_ref > 0:
             self.throttle_left      = self.omega_controller_left.update(setpoint=self.omega_left_ref,measured_speed=self.omega_left_sig,compensate=True)
         else:
