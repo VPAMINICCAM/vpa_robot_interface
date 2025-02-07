@@ -278,7 +278,7 @@ class WheelDriverNode:
         #     self.throttle_right     = self.omega_controller_right.update(setpoint=self.omega_right_ref,measured_speed=self.omega_right_sig,compensate=True)
         # else:
         #     self.throttle_right     = self.omega_controller_right.update(setpoint=self.omega_right_ref,measured_speed=self.omega_right_sig)
-
+        self.throttle_right     = self.omega_controller_right.update(setpoint=self.omega_right_ref,measured_speed=self.omega_right_sig)
         if self.omega_left_sig <= 0.1/(self._radius) and self.throttle_left > 0.6:
             self.throttle_left = 0.6 # anti-sliding
         if self.omega_right_sig <= 0.1/(self._radius) and self.throttle_right > 0.6:
@@ -297,7 +297,6 @@ class WheelDriverNode:
             self.driver.set_wheels_throttle(left=0,right=0)
             self.omega_controller_left.reset()
             self.omega_controller_right.reset()
-
         # Ensure throttle values are within bounds
         self.throttle_left = max(min(self.throttle_left, 1.0), -1.0)
         self.throttle_right = max(min(self.throttle_right, 1.0), -1.0)
