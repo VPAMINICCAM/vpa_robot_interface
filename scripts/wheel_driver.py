@@ -332,6 +332,7 @@ class WheelDriverNode:
 
     def _log_settings(self, wheel, config):
         log_file = os.path.join(self.log_dir, f'{wheel}_settings.json')
+        os.makedirs(self.log_dir, exist_ok=True)
         with open(log_file, 'w') as f:
             json.dump(config, f, indent=4)
         rospy.loginfo(f"Settings for {wheel} logged to {log_file}")
