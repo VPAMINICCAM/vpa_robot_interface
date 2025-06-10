@@ -149,11 +149,14 @@ class WheelDriverNode:
         self._radius    = 0.0318    # radius of wheels
 
         # Global brake
-
-        self.yaw_pid = PI_controller(kp=0.5, ki=0.05)
-        self.yaw_trim = 0.0
-        self.yaw_setpoint = 0.0
-        self.yaw = 0.0
+        self.if_dyna_trim = rospy.get_param('~dyna_trim', False)
+        if self.if_dyna_trim:
+            self.yaw_pid = PI_controller(kp=0.5, ki=0.05)
+            self.yaw_trim = 0.0
+            self.yaw_setpoint = 0.0
+            self.yaw = 0.0
+        else:
+            self.yaw_trim = 0.0
         
         self.estop         = True
         rospy.loginfo("%s: global brake activated",self.veh_name)
@@ -243,19 +246,21 @@ class WheelDriverNode:
         #print('signal',self.omega_left_sig,self.omega_right_sig)
 
         # Calculate the current yaw rate from wheel speeds
-        current_yaw_rate = (self.omega_right_sig - self.omega_left_sig) * self._radius / self._baseline
-        self.yaw += current_yaw_rate * 1/20
-        # Update the yaw PID controller
-        self.yaw_trim = self.yaw_pid.pi_control(self.yaw_setpoint, current_yaw_rate,False)
-        if self.omega_left_ref <=0 or self.omega_right_ref <=0:
-            self.yaw_trim = 0
-            self.yaw_pid.reset_controller()
-            self.yaw = 0
-        # Restrict yaw_trim to ±0.2
-        self.yaw_trim = max(min(self.yaw_trim, 1), -1)
-        if self.yaw_trim != 0:
-            _output = self.yaw_pid.return_debug()
-            print('yaw',self.yaw,'trim',self.yaw_trim,'output',_output)
+        if self.if_dyna_trim:
+            current_yaw_rate = (self.omega_right_sig - self.omega_left_sig) * self._radius / self._baseline
+            self.yaw += current_yaw_rate * 1/20
+            # Update the yaw PID controller
+            self.yaw_trim = self.yaw_pid.pi_control(self.yaw_setpoint, current_yaw_rate,False)
+            if self.omega_left_ref <=0 or self.omega_right_ref <=0:
+                self.yaw_trim = 0
+                self.yaw_pid.reset_controller()
+                self.yaw = 0
+            # Restrict yaw_trim to ±0.2
+            self.yaw_trim = max(min(self.yaw_trim, 1), -1)
+            if self.yaw_trim != 0:
+                _output = self.yaw_pid.return_debug()
+
+            # print('yaw',self.yaw,'trim',self.yaw_trim,'output',_output)
 
         self.throttle_left      = self.omega_controller_left.update(self.omega_left_ref*(1-self.yaw_trim),self.omega_left_sig,1/20)
         self.throttle_right     = self.omega_controller_right.update(self.omega_right_ref*(1+self.yaw_trim),self.omega_right_sig,1/20)
@@ -264,17 +269,6 @@ class WheelDriverNode:
             self.throttle_left <= 0.5 # anti-sliding
         if self.omega_right_sig <= 0.15/(self._radius):
             self.throttle_right <= 0.5
-        # print('throttle', self.throttle_left, self.throttle_right)
-        
-        # if self.throttle_left > 1:
-        #     self.throttle_left = 1
-        # elif self.throttle_left < -0.5:
-        #     self.throttle_left = -0.5
-
-        # if self.throttle_right > 1:
-        #     self.throttle_right = 1
-        # elif self.throttle_right < -0.5:
-        #     self.throttle_right = -0.5
         
         if self.omega_left_ref == 0:
             self.throttle_left = 0
