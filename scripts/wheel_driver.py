@@ -255,9 +255,9 @@ class WheelDriverNode:
                 self.yaw_trim = 0
                 self.yaw_pid.reset_controller()
                 self.yaw = 0
-            # Restrict yaw_trim to ±0.2
-            self.yaw_trim = max(min(self.yaw_trim, 1), -1)
-            if self.yaw_trim != 0:
+                # Restrict yaw_trim to ±0.2
+                self.yaw_trim = max(min(self.yaw_trim, 1), -1)
+            if self.dyna_trim:
                 _output = self.yaw_pid.return_debug()
 
             # print('yaw',self.yaw,'trim',self.yaw_trim,'output',_output)
