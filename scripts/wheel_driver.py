@@ -184,7 +184,8 @@ class WheelDriverNode:
         
         self.srv_left = Server(omegaConfig, self.dynamic_reconfigure_callback_left, namespace='left_wheel')
         self.srv_right = Server(omegaConfig, self.dynamic_reconfigure_callback_right, namespace='right_wheel')
-        self.srv_yaw = Server(yawConfig, self.dynamic_reconfigure_callback_yaw, namespace='yaw_pid')
+        if self.if_dyna_trim:
+            self.srv_yaw = Server(yawConfig, self.dynamic_reconfigure_callback_yaw, namespace='yaw_pid')
         rospy.loginfo("%s: wheel drivers ready",self.veh_name)
 
 
@@ -257,8 +258,7 @@ class WheelDriverNode:
                 self.yaw = 0
                 # Restrict yaw_trim to ±0.2
                 self.yaw_trim = max(min(self.yaw_trim, 1), -1)
-            if self.dyna_trim:
-                _output = self.yaw_pid.return_debug()
+
 
             # print('yaw',self.yaw,'trim',self.yaw_trim,'output',_output)
 
