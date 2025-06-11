@@ -164,6 +164,8 @@ class WheelDriverNode:
         rospy.loginfo("%s: local brake activated",self.veh_name)
         # Subscribers
         # self.sub_cmd     = rospy.Subscriber("wheels_cmd", WheelsCmd, self.wheels_cmd_cb, queue_size=1)
+
+        self.pub_wheel_debug = rospy.Publisher('wheel_ref',WheelsCmd,queue_size=1)
         if not self.direct_mode:
             self.sub_wheel_enc = rospy.Subscriber("wheel_omega",WheelsEncoder,self.wheel_omega_cb,queue_size=1)
             self.sub_car_cmd   = rospy.Subscriber("cmd_vel", Twist, self.car_cmd_cb)
@@ -172,7 +174,7 @@ class WheelDriverNode:
             
         self.sub_e_stop         = rospy.Subscriber("/global_brake", Bool, self.estop_cb, queue_size=1)
         self.sub_local_e_stop   = rospy.Subscriber("local_brake", Bool, self.estop_local_cb, queue_size=1)
-        self.pub_wheel_debug = rospy.Publisher('wheel_ref',WheelsCmd,queue_size=1)
+
         rospy.Subscriber("robot_interface_shutdown", Bool, self.signal_shut)
         self.dyna_trim = rospy.get_param('~dyna_trim', False)
         
