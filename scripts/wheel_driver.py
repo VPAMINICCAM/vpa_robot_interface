@@ -190,7 +190,6 @@ class WheelDriverNode:
             self.srv_yaw = Server(yawConfig, self.dynamic_reconfigure_callback_yaw, namespace='yaw_pid')
         rospy.loginfo("%s: wheel drivers ready",self.veh_name)
 
-
         
     def signal_shut(self,msg:Bool):
         if msg.data:
