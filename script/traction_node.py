@@ -72,8 +72,10 @@ class VPAHAT:
         # Publish the message
         message = Float32MultiArray()
         self.yaw_rate_model = self.chassis.calculate_yaw_rate_from_wheelspd(self.usart_com.left_speed, self.usart_com.right_speed)
+        left_spd_linear = self.usart_com.left_speed * self.chassis.wheel_diameter * 3.14
+        right_spd_linear = self.usart_com.right_speed * self.chassis.wheel_diameter * 3.14
         self.yaw_rate = self.filter.update(self.yaw_rate_imu, self.yaw_rate_model)
-        message.data = [self.usart_com.left_speed, self.usart_com.right_speed,self.yaw_rate]
+        message.data = [left_spd_linear, right_spd_linear,self.yaw_rate]
         self.pub_real_wheel_speeds.publish(message)
         if self.debug_mode:
             rospy.loginfo("Published message: %s",message)
