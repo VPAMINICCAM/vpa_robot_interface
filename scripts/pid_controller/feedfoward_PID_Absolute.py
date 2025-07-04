@@ -21,6 +21,7 @@ class PIDController_Enhanced:
         # Internal states
         self.integrator = 0.0
         self.prev_error = 0.0
+        self.prev_meas = 0.0
         self.prev_time = None
         self.u_unsat = 0.0
 
@@ -37,28 +38,34 @@ class PIDController_Enhanced:
         if dt is None:
             if self.prev_time is None:
                 self.prev_time = current_time
-                return 0.0  # no output on first call
+                return 0.0  # No control output on first call
             dt = current_time - self.prev_time
             self.prev_time = current_time
         if dt <= 0.0:
             return 0.0
 
-        # Derivative
-        derivative = (error - self.prev_error) / dt
+        # Derivative term
+        # derivative = (error - self.prev_error) / dt
+        derivative = (meas - self.prev_meas) / dt
 
-        # Feedforward
+        self.prev_meas = meas
+        # Feedforward term (not to be limited)
         u_ff = self.kff * ref + self.bff
 
-        # Unsaturated control
-        self.u_unsat = u_ff + self.kp * error + self.ki * self.integrator + self.kd * derivative
+        # PID raw output (unsaturated)
+        u_pid = self.kp * error + self.ki * self.integrator + self.kd * derivative
 
-        # Saturate control
-        u = max(self.u_min, min(self.u_max, self.u_unsat))
+        # Saturate only the PID part (allowing FF to pass through clean)
+        u_pid_sat = max(self.u_min, min(self.u_max , u_pid))
 
-        # Anti-windup: back-calculation
-        self.integrator += dt * (error + (u - self.u_unsat) / self.tau_aw)
+        # Final control signal
+        u = u_ff + u_pid_sat
+
+        # Anti-windup correction
+        self.integrator += dt * (error + (u_pid_sat - u_pid) / self.tau_aw)
 
         # Save state
         self.prev_error = error
 
         return u
+    

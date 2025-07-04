@@ -13,7 +13,7 @@ from std_msgs.msg import Bool
 from geometry_msgs.msg import Twist
 
 class pidConfig:
-    def __init__(self,kp=0.1, ki=0.0, kd=0.0, kff=0.0, bff=0.0, u_min=float('-inf'), u_max=float('inf'),tau_aw=1.0):
+    def __init__(self,kp=0.1, ki=0.0, kd=0.0, kff=0.0, bff=0.0, u_min=0, u_max=1,tau_aw=1.0):
         self.kp = kp
         self.ki = ki
         self.kd = kd
@@ -91,12 +91,20 @@ class WheelDriverEnhanced(WheelDriver):
             self.left_omega_controller.reset()
             self.right_omega_controller.reset()
             return
-
-        left_omega = msg.linear.x - (self._baseline / 2.0) * msg.angular.z
-        right_omega = msg.linear.x + (self._baseline / 2.0) * msg.angular.z
+        if msg.linear.x == 0:
+            # If no linear velocity, set both wheels to zero throttle
+            self.driver.set_wheels_throttle(left=0, right=0)
+            self.left_omega_controller.reset()
+            self.right_omega_controller.reset()
+            return
+        # Convert linear.x (m/s) and angular.z (rad/s) to wheel angular velocity (rad/s)
+        # v = r * omega  =>  omega = v / r
+        left_omega = (msg.linear.x - (self._baseline / 2.0) * msg.angular.z) / self._radius
+        right_omega = (msg.linear.x + (self._baseline / 2.0) * msg.angular.z) / self._radius
 
         left_throttle = self.left_omega_controller.update(ref=left_omega, meas=self.left_omega,dt=0.1, current_time=None)
-        right_throttle = self.right_omega_controller.update(ref=right_omega, meas=self.right_omegam, dt=0.1, current_time=None)
+        print(f"Left omega (rad/s): {left_omega}, Measured (rad/s): {self.left_omega}, Throttle: {left_throttle}")
+        right_throttle = self.right_omega_controller.update(ref=right_omega, meas=self.right_omega, dt=0.1, current_time=None)
         # Simplify the time gap for i and d terms, assuming a constant loop rate of 10Hz
         
         self.driver.set_wheels_throttle(left=left_throttle, right=right_throttle)
@@ -126,7 +134,11 @@ class WheelDriverEnhanced(WheelDriver):
         self.left_omega_controller.u_min = config['u_min']
         self.left_omega_controller.u_max = config['u_max']
         self.left_omega_controller.tau_aw = config['tau_aw']
-        rospy.loginfo("%s: Left wheel PID configuration updated: %s", self.robot_name, config)
+        # Organize and pretty-print the config dictionary for better readability
+
+        config_to_log = {k: v for k, v in config.items() if k != 'groups'}
+        config_str = "\n".join([f"    {k}: {v}" for k, v in config_to_log.items()])
+        rospy.loginfo("%s: Left wheel PID configuration updated:\n%s", self.robot_name, config_str)
         return config
 
     def dynamic_reconfigure_callback_right(self, config, level):
@@ -138,7 +150,9 @@ class WheelDriverEnhanced(WheelDriver):
         self.right_omega_controller.u_min = config['u_min']
         self.right_omega_controller.u_max = config['u_max']
         self.right_omega_controller.tau_aw = config['tau_aw']
-        rospy.loginfo("%s: Right wheel PID configuration updated: %s", self.robot_name, config)
+        config_to_log = {k: v for k, v in config.items() if k != 'groups'}
+        config_str = "\n".join([f"    {k}: {v}" for k, v in config_to_log.items()])
+        rospy.loginfo("%s: Right wheel PID configuration updated:\n%s", self.robot_name, config_str)
         return config    
 
     def shut_hook(self):
