@@ -238,8 +238,8 @@ class WheelDriverNode:
             self.driver.set_wheels_throttle(left=self.throttle_left,right=self.throttle_right)
         else:
             self.driver.set_wheels_throttle(left=0,right=0)
-            self.omega_controller_left.reset_controller()
-            self.omega_controller_right.reset_controller()
+            self.omega_controller_left.reset()
+            self.omega_controller_right.reset()
     
     def wheel_omega_cb(self,msg:WheelsEncoder) -> None:
 
