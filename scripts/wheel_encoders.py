@@ -25,7 +25,7 @@ class WheelEncoderDriver:
         self._gpio_pin = gpio_pin
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(gpio_pin, GPIO.IN)
-        GPIO.add_event_detect(gpio_pin, GPIO.RISING, callback=self._cb)
+        GPIO.add_event_detect(gpio_pin, GPIO.RISING, callback=self._cb, bouncetime=2)
 
         self._callback = callback
 
