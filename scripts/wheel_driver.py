@@ -10,7 +10,7 @@ import json
 import numpy as np
 
 from vpa_robot_interface.msg import WheelsCmd,WheelsEncoder
-from vpa_robot_interface.cfg import omegaConfig, yawConfig
+from vpa_robot_interface.cfg import omegaConfig
 
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Bool
