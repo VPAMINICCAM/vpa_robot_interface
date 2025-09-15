@@ -162,6 +162,24 @@ class WheelDriverNode:
             'ki_right': self.default_ki[1]
         })
 
+        pid_setting_path = os.path.join(self.log_dir, 'wheel_pid.yaml')
+
+        if os.path.exists(pid_setting_path):
+
+            with open(pid_setting_path, 'r') as f:
+                try:
+                    pid_params = json.load(f)
+                    kp_left = pid_params.get('left_kp', self.default_kp[0])
+                    ki_left = pid_params.get('left_ki', self.default_ki[0])
+                    kp_right = pid_params.get('right_kp', self.default_kp[1])
+                    ki_right = pid_params.get('right_ki', self.default_ki[1])
+                    self.wheel_spd_controller.update_gains(kp_left, ki_left, kp_right, ki_right)
+                    rospy.loginfo(f"{self.veh_name}: Loaded PID params from {pid_setting_path}")
+                except json.JSONDecodeError as e:
+                    rospy.logwarn(f"{self.veh_name}: Failed to parse PID settings file: {e}")
+        else:
+            rospy.loginfo(f"{self.veh_name}: No existing PID settings file found at {pid_setting_path}, using default gains.")
+
         rospy.loginfo("%s: wheel drivers ready",self.veh_name)
 
     def signal_shut(self,msg:Bool):
