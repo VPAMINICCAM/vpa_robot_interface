@@ -44,6 +44,9 @@ class DeadReckonerNode:
         self.theta = None
 
     def reset_odometry_cb(self, msg: Bool):
+        if self.dd_in_operation:
+            rospy.logwarn(f"{self.robot_name}: Cannot reset odometry while dead reckoning in operation")
+            return
         if msg.data:
             self.dd_in_operation = True
             self.x = self.start_pose.x
@@ -61,6 +64,8 @@ class DeadReckonerNode:
             self.prev_ticks_right = None
 
     def start_pose_cb(self, msg: Pose2D):
+        if self.dd_in_operation:
+            return # not accept new start pose while in operation
         self.start_pose = msg
         rospy.loginfo(f"{self.robot_name}: New start pose: x={msg.x}, y={msg.y}, theta={msg.theta}")
 
@@ -73,7 +78,7 @@ class DeadReckonerNode:
                 rospy.loginfo(f"{self.robot_name}: IMU gyro z bias initialized: {self.imu_gyro_z_bias}")
             return
         w_z -= self.imu_gyro_z_bias
-        dt = 1.0 / 20.0  # assuming imu at 20 Hz
+        dt  = 0.05  # assuming imu at 20 Hz
         if self.theta is not None:
             self.theta -= w_z * dt
             self.theta = wrap(self.theta)
@@ -110,4 +115,6 @@ class DeadReckonerNode:
         pose_msg.theta = self.theta
         self.pose_pub.publish(pose_msg)
     
-    
+if __name__ == "__main__":
+    node = DeadReckonerNode()
+    rospy.spin()
