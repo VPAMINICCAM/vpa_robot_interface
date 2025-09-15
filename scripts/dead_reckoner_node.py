@@ -2,7 +2,8 @@
 
 import math, rospy
 from geometry_msgs.msg import Pose2D
-from sensor_msgs.msg import Imu, Bool
+from sensor_msgs.msg import Imu
+from std_msgs.msg import Bool
 import socket
 from vpa_robot_interface.msg import WheelsEncoder
 
@@ -24,6 +25,7 @@ class DeadReckonerNode:
         self.dd_in_operation = False
 
         rospy.Subscriber("reset_odometry", Bool, self.reset_odometry_cb, queue_size=1)
+        self.start_pose = Pose2D(0.0, 0.0, 0.0)
         rospy.Subscriber("start_pose", Pose2D, self.start_pose_cb, queue_size=1)
 
         self.curr_left_ticks = None
@@ -44,7 +46,7 @@ class DeadReckonerNode:
         self.theta = None
 
     def reset_odometry_cb(self, msg: Bool):
-        if self.dd_in_operation:
+        if self.dd_in_operation and msg.data:
             rospy.logwarn(f"{self.robot_name}: Cannot reset odometry while dead reckoning in operation")
             return
         if msg.data:
@@ -55,13 +57,16 @@ class DeadReckonerNode:
 
             self.prev_ticks_left = self.curr_left_ticks
             self.prev_ticks_right = self.curr_right_ticks
+            rospy.loginfo(f"{self.robot_name}: Dead reckoning started at x={self.x}, y={self.y}, theta={self.theta}")
         else:
             self.dd_in_operation = False
-            self.x = None
-            self.y = None
-            self.theta = None
+            self.x = 0
+            self.y = 0
+            self.theta = 0
             self.prev_ticks_left = None
             self.prev_ticks_right = None
+            rospy.loginfo(f"{self.robot_name}: Dead reckoning stopped and reset to zero")
+
 
     def start_pose_cb(self, msg: Pose2D):
         if self.dd_in_operation:
