@@ -25,7 +25,7 @@ class WheelEncoderDriver:
         self._gpio_pin = gpio_pin
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(gpio_pin, GPIO.IN)
-        GPIO.add_event_detect(gpio_pin, GPIO.RISING, callback=self._cb, debounce=20)  # debounce is in milliseconds
+        GPIO.add_event_detect(gpio_pin, GPIO.RISING, callback=self._cb)  
 
         self._callback = callback
 
@@ -98,6 +98,9 @@ class WheelEncodersNode:
         delta_left  = self._tick_left - self._tick_left_last
         delta_right = self._tick_right - self._tick_right_last
 
+        self._tick_left_last  = self._tick_left
+        self._tick_right_last = self._tick_right
+
         ts = 1.0 / self._publish_frequency
 
         omega_left  = (delta_left * 2 * pi) / (self._resolution * ts)
@@ -118,9 +121,7 @@ class WheelEncodersNode:
         now = rospy.Time.now()
         
         msg_to_send = WheelsEncoder()
-        msg_to_send.header.seq = self.seq
-        msg_to_send.header.stamp.secs   = now.secs
-        msg_to_send.header.stamp.nsecs  = now.nsecs
+        msg_to_send.header.stamp = now
         msg_to_send.omega_left  = self.omega_left
         msg_to_send.omega_right = self.omega_right
         msg_to_send.left_ticks  = self._tick_left
