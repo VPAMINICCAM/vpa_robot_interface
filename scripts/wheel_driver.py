@@ -5,7 +5,7 @@ import socket
 from math import fabs, floor
 import os
 from dt_config.dt_hardware_settings import MotorDirection, HATv2
-import json
+import yaml
 
 import numpy as np
 
@@ -168,7 +168,7 @@ class WheelDriverNode:
 
             with open(pid_setting_path, 'r') as f:
                 try:
-                    pid_params = json.load(f)
+                    pid_params = yaml.safe_load(f)
                     kp_left = pid_params.get('left_kp', self.default_kp[0])
                     ki_left = pid_params.get('left_ki', self.default_ki[0])
                     kp_right = pid_params.get('right_kp', self.default_kp[1])
