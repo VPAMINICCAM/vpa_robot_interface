@@ -118,8 +118,9 @@ class WheelDriverNode:
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
         
-        self.default_kp = np.array([0.3, 0.2])
-        self.default_ki = np.array([1.2, 1.0])
+        self.default_kp = (0.3, 0.2)   # or [0.3, 0.2]
+        self.default_ki = (1.2, 1.0)
+
 
         self.wheel_spd_controller = WheelSpeedController(Kp=self.default_kp,Ki=self.default_ki)
 
@@ -153,7 +154,7 @@ class WheelDriverNode:
         self.sub_local_e_stop   = rospy.Subscriber("local_brake", Bool, self.estop_local_cb, queue_size=1)
         self.pub_wheel_debug    = rospy.Publisher('wheel_ref',WheelsCmd,queue_size=1)
         
-        self.srv_wheel = Server(omegaConfig, self.dynamic_reconfigure_callback, namespace='wheel_space')
+        self.srv_wheel = Server(omegaConfig, self.dynamic_reconfigure_callback)
         self.srv_wheel.update_configuration({
             'kp_left': self.default_kp[0],
             'ki_left': self.default_ki[0],
@@ -221,7 +222,14 @@ class WheelDriverNode:
         omega = np.array([self.omega_left_sig, self.omega_right_sig])
         omega_ref = np.array([self.omega_left_ref, self.omega_right_ref])
 
+        
         u = self.wheel_spd_controller.compute(omega, omega_ref)
+        
+        if omega_ref[0] == 0:
+            u[0] = 0
+        
+        if omega_ref[1] == 0:
+            u[1] = 0
 
         self.throttle_left  = u[0]
         self.throttle_right = u[1]
@@ -233,17 +241,18 @@ class WheelDriverNode:
 
 
     def dynamic_reconfigure_callback(self, config, level):
-        """Callback for dynamic reconfigure server.
-        kp_left, ki_left, kp_right, ki_right are the PID gains for the left and right wheels.
-        """
-        kp_left     = config['kp_left']
-        ki_left     = config['ki_left']
-        kp_right    = config['kp_right']
-        ki_right    = config['ki_right']
-        self.wheel_spd_controller.update_gains(kp_left, ki_left, kp_right, ki_right)
-        return config
+        # Debug: see exactly what’s coming in
+        # print("cfg type:", type(config), "keys:", list(config.keys()))
 
+        # Always cast to native Python floats
+        kp_l = float(config.kp_left)
+        ki_l = float(config.ki_left)
+        kp_r = float(config.kp_right)
+        ki_r = float(config.ki_right)
 
+        self.wheel_spd_controller.update_gains(kp_l, ki_l, kp_r, ki_r)
+        return config  # MUST return config unchanged
+        
 
 if __name__ == '__main__':
 
