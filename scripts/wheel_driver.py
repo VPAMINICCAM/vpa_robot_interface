@@ -143,7 +143,7 @@ class WheelDriverNode:
         self.estop         = True
         self.local_estop   = True
         # Subscribers
-
+        self.pub_wheel_debug    = rospy.Publisher('wheel_ref',WheelsCmd,queue_size=1)
         if not self.direct_mode:
             self.sub_wheel_enc = rospy.Subscriber("wheel_omega",WheelsEncoder,self.wheel_omega_cb,queue_size=1)
             self.sub_car_cmd   = rospy.Subscriber("cmd_vel", Twist, self.car_cmd_cb)
@@ -152,7 +152,7 @@ class WheelDriverNode:
             
         self.sub_e_stop         = rospy.Subscriber("/global_brake", Bool, self.estop_cb, queue_size=1)
         self.sub_local_e_stop   = rospy.Subscriber("local_brake", Bool, self.estop_local_cb, queue_size=1)
-        self.pub_wheel_debug    = rospy.Publisher('wheel_ref',WheelsCmd,queue_size=1)
+        
         
         self.srv_wheel = Server(omegaConfig, self.dynamic_reconfigure_callback)
         self.srv_wheel.update_configuration({
