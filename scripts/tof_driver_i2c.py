@@ -1,65 +1,58 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
+
+from tof_drivers.VL53L1XPlus import VL53L1XPlus
 import rospy
-
-from tof_drivers.tof400f_i2c import ToFVL53L1X
 from sensor_msgs.msg import Range
-from std_msgs.msg import Bool
-class ToFDriverNode:
+from std_msgs.msg import Int32
+import time
+import sys
+import socket
 
-    def __init__(self) -> None:
-        
-        rospy.on_shutdown(self.shut_hook)
-        self.tof = ToFVL53L1X(address=0x29,bus_num=7)
+class ToFVL53L1XPlus:
 
-        self.veh_name         = rospy.get_namespace().strip("/")
-        if len(self.veh_name) == 0:
-            self.veh_name = 'db19'
-        self.tof_distance = 5
-        self._pub_tof     = rospy.Publisher('tof_distance',Range,queue_size=1)
-        self._timer       = rospy.Timer(rospy.Duration(1/10),self._read_data)
-        self._publish_res = rospy.Timer(rospy.Duration(1/10),self._publish_data)
+    def __init__(self,address=0x29, bus_num=7):
+        rospy.init_node('front_tof', anonymous=False)
+        rospy.on_shutdown(self.stop_sensor)
+        self.robot_name = socket.gethostname()
+        self.sensor = VL53L1XPlus(i2c_address=address, i2c_bus=bus_num)
 
-        
+        self.sensor.open()
+        self.sensor.start(mode='short', timing_budget_ms=33, intermeasurement_ms=50)
 
-        rospy.loginfo("%s: tof sensor ready",self.veh_name)
-    
-        rospy.Subscriber("robot_interface_shutdown", Bool, self.signal_shut)
+        self.range_pub = rospy.Publisher('front_range', Range, queue_size=1)
+        self.range_status_pub = rospy.Publisher('front_range_status', Int32, queue_size=1)
 
-    def signal_shut(self,msg:Bool):
-        if msg.data:
-            rospy.signal_shutdown('tof sensor node shutdown')
+        self.timer = rospy.Timer(rospy.Duration(0.05), self.timer_callback)
 
-    def _read_data(self,_):
+    def timer_callback(self, event):
+        try:
+            distance = self.sensor.get_distance_mm()
+            status = self.sensor.get_range_status()
+            range_msg = Range()
+            range_msg.header.stamp = rospy.Time.now()
+            range_msg.header.frame_id = "front_tof"
+            range_msg.radiation_type = Range.INFRARED
+            range_msg.field_of_view = 0.1
+            range_msg.min_range = 0.04
+            range_msg.max_range = 4.0
+            range_msg.range = distance / 1000.0  # Convert mm to meters
+            self.range_pub.publish(range_msg)
+            self.range_status_pub.publish(status)
+        except Exception as e:
+            rospy.logerr(f"Error reading distance: {e}")
 
-        value = self.tof.get_distance()
-        
-        if value != -1 and value != None:
-            self.tof_distance = value
-        
-    def _publish_data(self,_):
+    def stop_sensor(self, *_):
+        self.sensor.stop()
+        self.sensor.close()
+        rospy.loginfo(f"{self.robot_name}: [ToF] sensor stopped cleanly.")
+        sys.exit(0)
 
-        r = Range()
-
-        r.header.stamp      = rospy.Time.now()
-        r.header.frame_id   = '/tof_sensor'
-        r.radiation_type    = Range.INFRARED
-        r.field_of_view     = (15 / 180) * 3.14
-        r.min_range         = 0.05
-        r.max_range         = 4
-        r.range             = self.tof_distance
-
-        self._pub_tof.publish(r)
-    
-    def shut_hook(self):
-        self.tof.stop_sensor()
-    
 if __name__ == '__main__':
-
     try:
-        rospy.init_node("tof_sensor")
-        N = ToFDriverNode()
+        tof_sensor = ToFVL53L1XPlus()
+        rospy.loginfo(f"{tof_sensor.robot_name}: [ToF] sensor initialized and running.")
         rospy.spin()
+    except rospy.ROSInterruptException:
+        pass
     except KeyboardInterrupt:
-        rospy.loginfo('Keyboard Shutdown')
-
-    
+        tof_sensor.stop_sensor()
