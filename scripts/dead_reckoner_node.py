@@ -72,7 +72,7 @@ class DeadReckonerNode:
         if self.dd_in_operation:
             return # not accept new start pose while in operation
         self.start_pose = msg
-        rospy.loginfo(f"{self.robot_name}: New start pose: x={msg.x}, y={msg.y}, theta={msg.theta}")
+        rospy.loginfo(f"{self.robot_name}: [DEAD-RECKONING] New start pose: x={msg.x}, y={msg.y}, theta={msg.theta}")
 
     def imu_cb(self, msg: Imu):
         w_z = msg.angular_velocity.z
