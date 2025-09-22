@@ -119,7 +119,7 @@ class WheelDriverNode:
             os.makedirs(self.log_dir)
         
         self.default_kp = (0.2, 0.2)   # or [0.3, 0.2]
-        self.default_ki = (0.5, 0.5)
+        self.default_ki = (0.3, 0.3)
 
 
         self.wheel_spd_controller = WheelSpeedController(Kp=self.default_kp,Ki=self.default_ki)
