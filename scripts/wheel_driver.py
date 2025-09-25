@@ -253,15 +253,26 @@ class WheelDriverNode:
         throttle_left  = u[0]
         throttle_right = u[1]
 
-        if abs(throttle_left-self.throttle_left) > 0.2:
-            throttle_left = self.throttle_left + np.sign(throttle_left-self.throttle_left)*0.2
-        else:
-            self.throttle_left = throttle_left
+        bound = 0.3
+        # Apply throttle limits
+        if not throttle_left == 0:
 
-        if abs(throttle_right-self.throttle_right) > 0.2:
-            throttle_right = self.throttle_right + np.sign(throttle_right-self.throttle_right)*0.2
+            if throttle_left-self.throttle_left > bound:
+                self.throttle_left = self.throttle_left + bound
+            else:
+                self.throttle_left = throttle_left
+
         else:
-            self.throttle_right = throttle_right
+            self.throttle_left = 0
+
+        if not throttle_right == 0:
+            
+            if throttle_right-self.throttle_right > bound:
+                self.throttle_right = self.throttle_right + bound
+            else:
+                self.throttle_right = throttle_right
+        else:
+            self.throttle_right = 0
 
 
         if not self.estop and not self.local_estop:
