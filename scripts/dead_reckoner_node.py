@@ -112,9 +112,16 @@ class DeadReckonerNode:
         d_center = 0.5 * (d_l + d_r)
         if self.theta is None:
             return
-        self.x += d_center * math.cos(self.theta)
-        self.y += d_center * math.sin(self.theta)
+        delta_x = d_center * math.cos(self.theta)
+        delta_y = d_center * math.sin(self.theta)
+        if abs(delta_x) > 0.5 or abs(delta_y) > 0.5:
+            rospy.logwarn(f"{self.robot_name}: Large jump in position detected: delta_x={delta_x}, delta_y={delta_y}. With encoder ticks delta_l={delta_l}, delta_r={delta_r}. Current enc ticks left={self.curr_left_ticks}, right={self.curr_right_ticks}, previous enc ticks left={self.prev_ticks_left}, right={self.prev_ticks_right}. Checking this update.")
+
+        self.x += delta_x
+        self.y += delta_y
         self.theta = wrap(self.theta)  # already updated in imu_cb
+
+
         pose_msg = Pose2D()
         pose_msg.x = self.x
         pose_msg.y = self.y
