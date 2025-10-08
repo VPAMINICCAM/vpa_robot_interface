@@ -58,6 +58,7 @@ class DeadReckonerNode:
             self.prev_ticks_left = self.curr_left_ticks
             self.prev_ticks_right = self.curr_right_ticks
             rospy.loginfo(f"{self.robot_name}: Dead reckoning started at x={self.x}, y={self.y}, theta={self.theta}")
+            rospy.loginfo(f"{self.robot_name}: Encoder ticks initialized at left={self.prev_ticks_left}, right={self.prev_ticks_right}")
         else:
             self.dd_in_operation = False
             self.x = 0
@@ -80,7 +81,7 @@ class DeadReckonerNode:
             self.imu_gyro_z_init.append(w_z)
             if len(self.imu_gyro_z_init) == 50:
                 self.imu_gyro_z_bias = sum(self.imu_gyro_z_init) / len(self.imu_gyro_z_init)
-                rospy.loginfo(f"{self.robot_name}: IMU gyro z bias initialized: {self.imu_gyro_z_bias}")
+                rospy.loginfo(f"[DEAD-RECKONING] {self.robot_name}: IMU gyro z bias initialized: {self.imu_gyro_z_bias}")
             return
         w_z -= self.imu_gyro_z_bias
         dt  = 0.05  # assuming imu at 20 Hz
