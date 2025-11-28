@@ -73,9 +73,13 @@ class MPU6050Node:
         rospy.loginfo(f"DLPF set to configuration {dlpf_cfg}.")
 
     def read_word(self, register):
-        high = self.bus.read_byte_data(self.addr, register.value)
-        low = self.bus.read_byte_data(self.addr, register.value + 1)
-        return (high << 8) + low
+        try:
+            high = self.bus.read_byte_data(self.addr, register.value)
+            low = self.bus.read_byte_data(self.addr, register.value + 1)
+            return (high << 8) + low
+        except Exception as e:
+            rospy.logerr(f"Error reading from MPU6050: {e}")
+            return 0
 
     def read_word_2c(self, register):
         val = self.read_word(register)
